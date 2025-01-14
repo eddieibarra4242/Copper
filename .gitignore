@@ -1,0 +1,4 @@
+bin/
+debug/
+.vscode/
+src/parser.c
