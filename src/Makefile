@@ -14,7 +14,7 @@ LINK_FLAGS += -O2
 
 OUTPUT_NAME = cu
 
-OBJ_FILES = main.o error.o
+OBJ_FILES = main.o error.o scanner.o
 
 all: mkdirs $(OBJ_FILES)
 	$(CC) $(OBJ_FILES:%=../bin/int/%) -o ../bin/$(OUTPUT_NAME) $(LINK_FLAGS)
