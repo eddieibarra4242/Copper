@@ -6,6 +6,7 @@
 #define IDENTIFIER 1
 #define KEYWORD 2
 #define PUNCT 3
+#define NUMBER 4
 
 #ifndef EOF
 // EOF should be defined as -1 anyways.

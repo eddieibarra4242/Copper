@@ -60,6 +60,24 @@ size_t scan_comment(const char *line, size_t index) {
   return i;
 }
 
+size_t scan_number(const char *line, size_t index) {
+  size_t i = index;
+
+  while (line[i] != '\0' && is_digit(line[i])) {
+    i++;
+  }
+
+  if (line[i] == '.') {
+    i++;
+  }
+
+  while (line[i] != '\0' && is_digit(line[i])) {
+    i++;
+  }
+
+  return i;
+}
+
 Token *alloc_new_token(const char *value, kind_t kind, size_t start,
                        size_t end) {
   size_t value_length = end - start;
@@ -124,6 +142,9 @@ Token *scan(const char *file) {
         i = scan_comment(file, i);
         continue;
       }
+    } else if (is_digit(file[i])) {
+      kind = NUMBER;
+      i = scan_number(file, i);
     } else {
       // TODO: throw error if we see a character that we don't expect.
       i++;
