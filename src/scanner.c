@@ -50,6 +50,16 @@ size_t scan_whitespace(const char *line, size_t index) {
   return i;
 }
 
+size_t scan_comment(const char *line, size_t index) {
+  size_t i = index;
+
+  while (line[i] != '\0' && line[i] != '\n') {
+    i++;
+  }
+
+  return i;
+}
+
 Token *alloc_new_token(const char *value, kind_t kind, size_t start,
                        size_t end) {
   size_t value_length = end - start;
@@ -107,8 +117,15 @@ Token *scan(const char *file) {
     } else if (is_whitespace(file[i])) {
       i = scan_whitespace(file, i);
       continue;
+    } else if (file[i] == '/') {
+      i++;
+
+      if (file[i] == '/') {
+        i = scan_comment(file, i);
+        continue;
+      }
     } else {
-      // consume as a character.
+      // TODO: throw error if we see a character that we don't expect.
       i++;
     }
 
