@@ -6,6 +6,9 @@
 #define ERROR_LEVEL 2
 #define CRITICAL_LEVEL 1
 
+#define ERROR(section, msg)                                                    \
+  panic(ERROR_LEVEL, section, msg, __FILE__, __LINE__);
+
 #define CRITICAL(section, msg)                                                 \
   panic(CRITICAL_LEVEL, section, msg, __FILE__, __LINE__);
 

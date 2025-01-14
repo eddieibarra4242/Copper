@@ -21,9 +21,25 @@ int main(int args, char** argv) {
 
   TRY(fseek(input, 0, SEEK_SET));
 
-  printf("File size is %ld!\n", file_size);
+  char *file = malloc(file_size + 1);
+  if (!file) {
+    ERROR("file", "Out of memory!");
+  }
+
+  size_t read_len = fread(file, sizeof(char), file_size, input);
+
+  if (read_len != (size_t)file_size) {
+    // FIXME: do not fail here...
+    ERROR("read", "Failed to read whole file!");
+  }
+
+  file[file_size] = '\0';
 
   TRY(fclose(input));
+
+  printf("%s\n", file);
+
+  free(file);
 
   return 0;
 }
