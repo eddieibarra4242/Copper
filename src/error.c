@@ -14,7 +14,12 @@ void panic(int level, const char *section, const char *msg, const char *file,
   UNUSED(lineno);
 #endif
 
-  fprintf(output_file, "[%s] %s\n", section, msg);
+  if (msg) {
+    fprintf(output_file, "[%s] %s\n", section, msg);
+  } else {
+    fprintf(output_file, "[%s] ", section);
+    perror("stdlib error");
+  }
 
   if (level < WARNING_LEVEL)
     exit(level);
