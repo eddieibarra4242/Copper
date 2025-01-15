@@ -4,8 +4,6 @@
 #include <stdbool.h>
 #include <stdio.h>
 
-#define YYDEBUG 0
-
 void init_parser(Token *list);
 int yyparse(void);
 

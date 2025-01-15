@@ -8,9 +8,18 @@
 %token ID
 %token NUM
 %token K_INT "int"
+%token K_RETURN "return"
 
 %%
-  function: type ID '(' ')' '{' '}';
+  function: type ID '(' ')' compound_stmt;
+
+  compound_stmt: '{' stmt_list '}';
+  stmt_list: %empty | stmt stmt_list;
+
+  exp: NUM;
+
+  stmt: "return" exp ';';
+
   type: "int";
 %%
 
@@ -31,6 +40,8 @@ int get_keyword() {
 
   if (strcmp(current_token->data, "int") == 0) {
     return K_INT;
+  } else if (strcmp(current_token->data, "return") == 0) {
+    return K_RETURN;
   }
 
   return YYUNDEF;

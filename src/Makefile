@@ -8,6 +8,10 @@ LINK_FLAGS = -L../bin
 
 # CFLAGS += -ggdb
 # LINK_FLAGS += -ggdb
+
+# Debug generated Bison parser.
+# CFLAGS += -DYYDEBUG=1
+
 CFLAGS += -O2 -DNDEBUG
 LINK_FLAGS += -O2
 
