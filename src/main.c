@@ -1,11 +1,11 @@
 #include <stdio.h>
 
 #include "common.h"
-#include "error.h"
-#include "scanner.h"
+#include "log.h"
 #include "parser.h"
+#include "scanner.h"
 
-int main(int args, char** argv) {
+int main(int args, char **argv) {
   if (args < 2) {
     CRITICAL("cli", "No input file!");
   }
@@ -46,6 +46,13 @@ int main(int args, char** argv) {
   if (tokens == NULL) {
     CRITICAL("lex", "Failed to scan file!");
   }
+
+#ifndef NDEBUG
+  for (Token *cur = tokens; cur != NULL; cur = cur->next) {
+    DEBUG("token [%d, %s, %zu, %zu]", cur->kind, cur->data, cur->start,
+          cur->end);
+  }
+#endif
 
   init_parser(tokens);
   int result = yyparse();

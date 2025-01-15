@@ -1,7 +1,7 @@
 %{
 #define _GNU_SOURCE
 #include "parser.h"
-#include "error.h"
+#include "log.h"
 #include <string.h>
 %}
 

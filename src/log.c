@@ -1,11 +1,11 @@
-#include "error.h"
+#include "log.h"
 #include "common.h"
 
 #include <stdarg.h>
 #include <stdio.h>
 
-void panic(int level, const char *section, const char *msg, const char *file,
-           int lineno, ...) {
+void log_message(int level, const char *section, const char *msg,
+                 const char *file, int lineno, ...) {
   FILE *output_file = level < WARNING_LEVEL ? stderr : stdout;
 
 #ifndef NDEBUG
