@@ -4,12 +4,11 @@ OBJDUMP = objdump
 
 CFLAGS = -Wall -Wextra -Wpedantic -Werror
 
-# CFLAGS += -ggdb
-CFLAGS += -O2
-
 LINK_FLAGS = -L../bin
 
+# CFLAGS += -ggdb
 # LINK_FLAGS += -ggdb
+CFLAGS += -O2 -DNDEBUG
 LINK_FLAGS += -O2
 
 OUTPUT_NAME = cu
