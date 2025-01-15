@@ -12,6 +12,12 @@
 #define CRITICAL(section, msg)                                                 \
   panic(CRITICAL_LEVEL, section, msg, __FILE__, __LINE__);
 
+#define ERRORV(section, msg, ...)                                              \
+  panic(ERROR_LEVEL, section, msg, __FILE__, __LINE__, __VA_ARGS__);
+
+#define CRITICALV(section, msg, ...)                                           \
+  panic(CRITICAL_LEVEL, section, msg, __FILE__, __LINE__, __VA_ARGS__);
+
 #define CHECK(result)                                                          \
   do {                                                                         \
     if (result == -1) {                                                        \
@@ -28,4 +34,4 @@
   } while (0)
 
 void panic(int level, const char *section, const char *msg, const char *file,
-           int lineno);
+           int lineno, ...);
