@@ -79,8 +79,8 @@ int yylex(void) {
 
 void yyerror(char const *s) {
   if (prev) {
-    ERRORV("parser", "%s at token \"%s\" (%zu:%zu)", s, prev->data,
-           prev->start, prev->end);
+    ERRORV("parser", "%s at token \"%s\" (line %zu:%zu)", s, prev->data,
+           prev->line_number, prev->column);
   } else {
     ERROR("parser", s);
   }

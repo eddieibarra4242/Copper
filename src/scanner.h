@@ -21,6 +21,9 @@ typedef struct TokenStruct {
   size_t start;
   size_t end;
 
+  size_t line_number;
+  size_t column;
+
   struct TokenStruct *next;
 } Token;
 

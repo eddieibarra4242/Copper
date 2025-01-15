@@ -6,6 +6,9 @@
 
 const char *keywords[] = {"int"};
 
+size_t seen_newlines = 0;
+long last_newline = 0;
+
 bool is_alpha(char character) {
   return ('A' <= character && character <= 'Z') ||
          ('a' <= character && character <= 'z');
@@ -29,49 +32,54 @@ bool is_keyword(const char *value) {
   return false;
 }
 
-size_t scan_identifier(const char *line, size_t index) {
+size_t scan_identifier(const char *file, size_t index) {
   size_t i = index;
 
-  while (line[i] != '\0' &&
-         (is_alpha(line[i]) || is_digit(line[i]) || line[i] == '_')) {
+  while (file[i] != '\0' &&
+         (is_alpha(file[i]) || is_digit(file[i]) || file[i] == '_')) {
     i++;
   }
 
   return i;
 }
 
-size_t scan_whitespace(const char *line, size_t index) {
+size_t scan_whitespace(const char *file, size_t index) {
   size_t i = index;
 
-  while (line[i] != '\0' && is_whitespace(line[i])) {
+  while (file[i] != '\0' && is_whitespace(file[i])) {
+    if (file[i] == '\n') {
+      seen_newlines++;
+      last_newline = i;
+    }
+
     i++;
   }
 
   return i;
 }
 
-size_t scan_comment(const char *line, size_t index) {
+size_t scan_comment(const char *file, size_t index) {
   size_t i = index;
 
-  while (line[i] != '\0' && line[i] != '\n') {
+  while (file[i] != '\0' && file[i] != '\n') {
     i++;
   }
 
   return i;
 }
 
-size_t scan_number(const char *line, size_t index) {
+size_t scan_number(const char *file, size_t index) {
   size_t i = index;
 
-  while (line[i] != '\0' && is_digit(line[i])) {
+  while (file[i] != '\0' && is_digit(file[i])) {
     i++;
   }
 
-  if (line[i] == '.') {
+  if (file[i] == '.') {
     i++;
   }
 
-  while (line[i] != '\0' && is_digit(line[i])) {
+  while (file[i] != '\0' && is_digit(file[i])) {
     i++;
   }
 
@@ -91,6 +99,10 @@ Token *alloc_new_token(const char *value, kind_t kind, size_t start,
   new_token->start = start;
   new_token->end = end;
   new_token->next = NULL;
+
+  // This only works if token does not contain a newline.
+  new_token->line_number = seen_newlines + 1;
+  new_token->column = start - last_newline;
 
   if (!value) {
     new_token->data = NULL;
@@ -124,6 +136,9 @@ Token *scan(const char *file) {
   Token *result = NULL;
   Token *last = NULL;
   size_t i;
+
+  seen_newlines = 0;
+  last_newline = -1;
 
   for (i = 0; file[i] != '\0';) {
     kind_t kind = PUNCT;
