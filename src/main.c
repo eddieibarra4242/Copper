@@ -3,6 +3,7 @@
 #include "common.h"
 #include "error.h"
 #include "scanner.h"
+#include "parser.h"
 
 int main(int args, char** argv) {
   if (args < 2) {
@@ -46,9 +47,11 @@ int main(int args, char** argv) {
     CRITICAL("lex", "Failed to scan file!");
   }
 
-  printf("Tokens:\n");
-  for (Token *cur = tokens; cur != NULL; cur = cur->next) {
-    printf("  [%d, %s, %zu, %zu]\n", cur->kind, cur->data, cur->start, cur->end);
+  init_parser(tokens);
+  int result = yyparse();
+
+  if (result != 0) {
+    CRITICAL("parser", "Failed to parse file!");
   }
 
   return 0;
