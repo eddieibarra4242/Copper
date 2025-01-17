@@ -156,6 +156,11 @@ void print_function(struct function *function) {
   stack++;
   print_type(function->return_type);
   print_id(function->name);
+
+  print("Body");
+
+  stack++;
   print_stmt_list(function->body);
+  stack--;
   stack--;
 }
