@@ -5,6 +5,7 @@
 #include "parser.h"
 #include "scanner.h"
 #include "ast.h"
+#include "debug_ast.h"
 
 int main(int args, char **argv) {
   if (args < 2) {
@@ -62,10 +63,11 @@ int main(int args, char **argv) {
     CRITICAL("parser", "Failed to parse file!");
   }
 
-  struct function *tree = get_root();
-  INFO("ast", "Tree root = %p", tree);
+#ifndef NDEBUG
+  print_ast();
+#endif
 
-  destroy_function(tree);
+  destroy_function(get_tree());
   free_list(tokens);
 
   return 0;

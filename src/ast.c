@@ -5,7 +5,7 @@
 
 struct function *root = NULL;
 
-struct function *get_root() { return root; }
+AST get_tree() { return root; }
 
 void *allocate_or_error(size_t size) {
   void *result = malloc(size);

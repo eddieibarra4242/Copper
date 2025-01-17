@@ -62,6 +62,8 @@ struct function {
   struct stmt_list *body;
 };
 
+typedef struct function *AST;
+
 struct type *create_type(Token *token);
 struct id *create_id(Token *token);
 struct exp *create_exp(Token *token);
@@ -87,4 +89,4 @@ void destroy_return_stmt(struct return_stmt *return_stmt);
 void destroy_compound_stmt(struct compound_stmt *compound_stmt);
 void destroy_stmt(struct stmt *stmt);
 
-struct function *get_root();
+AST get_tree();
