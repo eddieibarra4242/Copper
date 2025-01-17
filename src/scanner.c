@@ -1,5 +1,6 @@
 #include "scanner.h"
 #include "common.h"
+#include "log.h"
 
 #include <stdbool.h>
 #include <string.h>
@@ -160,9 +161,49 @@ Token *scan(const char *file) {
     } else if (is_digit(file[i])) {
       kind = NUMBER;
       i = scan_number(file, i);
-    } else {
-      // TODO: throw error if we see a character that we don't expect.
+    } else if (file[i] == '(' || file[i] == ')' || file[i] == '{' ||
+               file[i] == '}' || file[i] == '?' || file[i] == ':' ||
+               file[i] == '~' || file[i] == '*' || file[i] == '/' ||
+               file[i] == '!' || file[i] == '%' || file[i] == ';') {
       i++;
+    } else if (file[i] == '+') {
+      i++;
+
+      if (file[i] == '+')
+        i++;
+    } else if (file[i] == '-') {
+      i++;
+
+      if (file[i] == '-')
+        i++;
+    } else if (file[i] == '&') {
+      i++;
+
+      if (file[i] == '&')
+        i++;
+    } else if (file[i] == '|') {
+      i++;
+
+      if (file[i] == '|')
+        i++;
+    } else if (file[i] == '<') {
+      i++;
+
+      if (file[i] == '<')
+        i++;
+      else if (file[i] == '=')
+        i++;
+    } else if (file[i] == '>') {
+      i++;
+
+      if (file[i] == '>')
+        i++;
+      else if (file[i] == '=')
+        i++;
+    } else {
+      size_t lineno = seen_newlines + 1;
+      size_t column = start - last_newline;
+      ERRORV("scanner", "Unexpected character %c at %zu:%zu", file[i], lineno, column);
     }
 
     const char *value_begin = &file[start];
