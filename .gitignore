@@ -2,3 +2,4 @@ bin/
 debug/
 .vscode/
 src/parser.c
+*.runner.c
