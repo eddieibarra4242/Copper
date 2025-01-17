@@ -1,12 +1,12 @@
 CC = gcc
 
-CFLAGS = -I../Unity/src/
+CFLAGS = -I../Unity/src/ -I../src/
 LINK_FLAGS = -L../bin -lunity
 
 TESTS = scanner.test.o
 
 all: mkdirs Unity compiler $(TESTS)
-	$(CC) ../bin/int/scanner.test.o ../bin/int/scanner.runner.o -o ../bin/tests/scanner.test $(LINK_FLAGS)
+	$(CC) ../bin/int/scanner.o ../bin/int/scanner.test.o ../bin/int/scanner.runner.o -o ../bin/tests/scanner.test $(LINK_FLAGS)
 
 %.test.o: %.test.c
 	ruby ../Unity/auto/generate_test_runner.rb $< $(<:%.test.c=%.runner.c)

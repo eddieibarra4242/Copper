@@ -181,9 +181,6 @@ Token *scan(const char *file) {
     append_linked_list(new_token, &result, &last);
   }
 
-  if (!result)
-    return NULL;
-
   Token *eof = alloc_new_token(NULL, EOF, i, i);
 
   if (!eof) {
