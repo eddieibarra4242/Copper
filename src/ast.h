@@ -76,4 +76,15 @@ struct stmt *create_compound_stmt(struct stmt_list *list);
 
 struct stmt_list *append_stmt(struct stmt *stmt, struct stmt_list *list);
 
+void destroy_type(struct type *type);
+void destroy_id(struct id *id);
+void destroy_exp(struct exp *exp);
+void destroy_stmt_list(struct stmt_list *stmt_list);
+void destroy_function(struct function *function);
+void destroy_else_stmt(struct else_stmt *else_stmt);
+void destroy_if_stmt(struct if_stmt *if_stmt);
+void destroy_return_stmt(struct return_stmt *return_stmt);
+void destroy_compound_stmt(struct compound_stmt *compound_stmt);
+void destroy_stmt(struct stmt *stmt);
+
 struct function *get_root();

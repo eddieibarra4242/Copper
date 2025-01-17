@@ -65,5 +65,8 @@ int main(int args, char **argv) {
   struct function *tree = get_root();
   INFO("ast", "Tree root = %p", tree);
 
+  destroy_function(tree);
+  free_list(tokens);
+
   return 0;
 }
