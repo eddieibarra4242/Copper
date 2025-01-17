@@ -3,12 +3,16 @@
 #include <stdlib.h>
 
 #define DEBUG_LEVEL 10
+#define INFO_LEVEL 5
 #define WARNING_LEVEL 3
 #define ERROR_LEVEL 2
 #define CRITICAL_LEVEL 1
 
 #define DEBUG(msg, ...)                                                        \
   log_message(DEBUG_LEVEL, "debug", msg, __FILE__, __LINE__, __VA_ARGS__)
+
+#define INFO(section, msg, ...)                                                \
+  log_message(INFO_LEVEL, section, msg, __FILE__, __LINE__, __VA_ARGS__)
 
 #define ERROR(section, msg)                                                    \
   log_message(ERROR_LEVEL, section, msg, __FILE__, __LINE__);

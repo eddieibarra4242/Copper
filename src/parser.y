@@ -2,8 +2,20 @@
 #define _GNU_SOURCE
 #include "parser.h"
 #include "log.h"
+#include "ast.h"
 #include <string.h>
 %}
+
+%union {
+  Token *tokenval;
+  struct type *typeval;
+  struct id *idval;
+  struct exp *expval;
+  struct stmt_list *listval;
+  struct function *functionval;
+  struct else_stmt *elseval;
+  struct stmt *stmtval;
+}
 
 %token ID
 %token NUM
@@ -12,46 +24,69 @@
 %token K_IF "if"
 %token K_ELSE "else"
 
+%type<tokenval> ID
+%type<typeval> type
+%type<stmtval> compound_stmt
+%type<functionval> function
+%type<listval> stmt_list
+%type<stmtval> stmt
+%type<tokenval> NUM
+%type<expval> exp
+%type<expval> opt_exp
+%type<stmtval> if_stmt
+%type<elseval> opt_else_stmt
+%type<elseval> else_stmt
+%type<tokenval> "int"
+
 %%
-  function: type ID '(' ')' compound_stmt;
+  function: type ID '(' ')' compound_stmt { $$ = create_function($1, $2, $5); }
 
-  compound_stmt: '{' stmt_list '}';
-  stmt_list: %empty | stmt stmt_list;
+  compound_stmt: '{' stmt_list '}' { $$ = create_compound_stmt($2); }
 
-  exp: NUM;
+  stmt_list: %empty { $$ = create_stmt_list(); }
+  | stmt stmt_list { $$ = append_stmt($1, $2); }
 
-  stmt: "return" exp ';' | if_stmt | compound_stmt;
+  exp: NUM { $$ = create_exp($1); }
 
-  if_stmt: "if" '(' exp ')' stmt opt_else_stmt;
+  opt_exp: %empty { $$ = NULL; }
+  | exp { $$ = $1; }
 
-  opt_else_stmt: %empty | else_stmt;
-  else_stmt: "else" stmt;
+  stmt: "return" opt_exp ';' { $$ = create_return_stmt($2); }
+  | if_stmt { $$ = $1; }
+  | compound_stmt { $$ = $1; }
 
-  type: "int";
+  if_stmt: "if" '(' exp ')' stmt opt_else_stmt { $$ = create_if_stmt($3, $5, $6); }
+
+  opt_else_stmt: %empty { $$ = NULL; }
+  | else_stmt { $$ = $1; }
+
+  else_stmt: "else" stmt { $$ = create_else_stmt($2); }
+
+  type: "int" { $$ = create_type($1); }
 %%
 
-Token *prev;
-Token *current_token;
+Token *cur;
+Token *next;
 
 void init_parser(Token *list) {
 #if YYDEBUG
   yydebug = 1;
 #endif
-  prev = NULL;
-  current_token = list;
+  cur = NULL;
+  next = list;
 }
 
 int get_keyword() {
-  if (!current_token)
+  if (!next)
     return YYUNDEF;
 
-  if (strcmp(current_token->data, "int") == 0) {
+  if (strcmp(next->data, "int") == 0) {
     return K_INT;
-  } else if (strcmp(current_token->data, "return") == 0) {
+  } else if (strcmp(next->data, "return") == 0) {
     return K_RETURN;
-  } else if (strcmp(current_token->data, "if") == 0) {
+  } else if (strcmp(next->data, "if") == 0) {
     return K_IF;
-  } else if (strcmp(current_token->data, "else") == 0) {
+  } else if (strcmp(next->data, "else") == 0) {
     return K_ELSE;
   }
 
@@ -59,10 +94,10 @@ int get_keyword() {
 }
 
 int get_punct() {
-  if (!current_token)
+  if (!next)
     return YYUNDEF;
 
-  const char *comp = current_token->data;
+  const char *comp = next->data;
 
   // TODO: return multi-char punctuation (eg. "->", "==", etc.)
 
@@ -70,12 +105,13 @@ int get_punct() {
 }
 
 int yylex(void) {
-  if (!current_token)
+  if (!next)
     return YYUNDEF;
 
   int ret = YYUNDEF;
 
-  switch (current_token->kind) {
+  yylval.tokenval = next;
+  switch (next->kind) {
   case IDENTIFIER:
     ret = ID;
     break;
@@ -93,16 +129,16 @@ int yylex(void) {
     break;
   }
 
-  prev = current_token;
-  current_token = current_token->next;
+  cur = next;
+  next = next->next;
 
   return ret;
 }
 
 void yyerror(char const *s) {
-  if (prev) {
-    ERRORV("parser", "%s at token \"%s\" (line %zu:%zu)", s, prev->data,
-           prev->line_number, prev->column);
+  if (cur) {
+    ERRORV("parser", "%s at token \"%s\" (line %zu:%zu)", s, cur->data,
+           cur->line_number, cur->column);
   } else {
     ERROR("parser", s);
   }

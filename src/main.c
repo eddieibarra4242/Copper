@@ -4,6 +4,7 @@
 #include "log.h"
 #include "parser.h"
 #include "scanner.h"
+#include "ast.h"
 
 int main(int args, char **argv) {
   if (args < 2) {
@@ -60,6 +61,9 @@ int main(int args, char **argv) {
   if (result != 0) {
     CRITICAL("parser", "Failed to parse file!");
   }
+
+  struct function *tree = get_root();
+  INFO("ast", "Tree root = %p", tree);
 
   return 0;
 }
