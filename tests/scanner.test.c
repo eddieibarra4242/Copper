@@ -1,31 +1,14 @@
 #include <unity.h>
 #include <stdbool.h>
 #include <scanner.h>
+#include <test_utils.h>
 
 void setUp(void) {
-  // set stuff up here
+  reset_log_checks();
 }
 
 void tearDown(void) {
   // clean stuff up here
-}
-
-size_t get_token_list_length(Token *tokens) {
-  size_t len = 0;
-  for (Token *cur = tokens; cur != NULL; cur = cur->next) {
-    len++;
-  }
-
-  return len;
-}
-
-void assert_token_equal(Token *expected, Token *actual) {
-  TEST_ASSERT_EQUAL(expected->kind, actual->kind);
-  TEST_ASSERT_EQUAL(expected->start, actual->start);
-  TEST_ASSERT_EQUAL(expected->end, actual->end);
-  TEST_ASSERT_EQUAL(expected->line_number, actual->line_number);
-  TEST_ASSERT_EQUAL(expected->column, actual->column);
-  TEST_ASSERT_EQUAL_STRING(expected->data, actual->data);
 }
 
 void test_simple_program(void) {
@@ -38,13 +21,14 @@ void test_simple_program(void) {
   TEST_ASSERT_EQUAL(7, list_length);
 
   Token k;
-  k.column = 1;
-  k.data = "int";
-  k.end = 3;
   k.kind = KEYWORD;
-  k.line_number = 1;
-  k.next = NULL;
-  k.start = 0;
+  k.length = 3;
+  k.data = "int";
+
+  k.span.start.line_number = 1;
+  k.span.start.column = 1;
+  k.span.end.line_number = 1;
+  k.span.end.column = 4;
 
   assert_token_equal(&k, cur);
 

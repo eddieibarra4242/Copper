@@ -1,11 +1,11 @@
 CC = gcc
 
-CFLAGS = -I../Unity/src/ -I../src/
-LINK_FLAGS = -L../bin -lunity
+CFLAGS = -I../Unity/src/ -I../src/ -I../test_utils
+LINK_FLAGS = -L../bin -lunity -ltestutils
 
 TESTS = scanner.test.o
 
-all: mkdirs Unity compiler $(TESTS)
+all: mkdirs $(TESTS)
 	$(CC) ../bin/int/scanner.o ../bin/int/scanner.test.o ../bin/int/scanner.runner.o -o ../bin/tests/scanner.test $(LINK_FLAGS)
 
 %.test.o: %.test.c
@@ -13,13 +13,5 @@ all: mkdirs Unity compiler $(TESTS)
 	$(CC) -c $(CFLAGS) $< -o ../bin/int/$@
 	$(CC) -c $(CFLAGS) $(<:%.test.c=%.runner.c) -o ../bin/int/$(@:%.test.o=%.runner.o)
 
-compiler:
-	cd ../src && $(MAKE)
-
 mkdirs:
 	mkdir -p ../bin/tests
-
-Unity:
-	cd ../Unity && meson setup builddir
-	cd ../Unity/builddir && meson compile
-	cp ../Unity/builddir/libunity.a ../bin
