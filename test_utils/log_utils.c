@@ -19,10 +19,6 @@ void expect_error(const char *error_message) {
   expected_error_message = error_message;
 }
 
-void expect_critical_error(const char *error_message) {
-  expected_error_message = error_message;
-}
-
 void log_message(int level, const char *section, const char *msg,
                  const char *file, int lineno, ...) {
   UNUSED(section);
@@ -39,4 +35,6 @@ void log_message(int level, const char *section, const char *msg,
   } else {
     TEST_ASSERT_EQUAL_STRING(expected_error_message, actual);
   }
+
+  TEST_PASS();
 }

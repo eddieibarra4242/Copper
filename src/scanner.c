@@ -11,7 +11,7 @@
     ERRORV("scanner",                                                          \
            "Unexpected character '%c' at %zu:%zu, expected: [" expected_list   \
            "]",                                                                \
-           pos.line_number, pos.column, file[i]);                              \
+           file[i], pos.line_number, pos.column);                              \
   } while (0)
 
 const char *keywords[] = {
