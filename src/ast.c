@@ -33,14 +33,6 @@ struct id *create_id(Token *token) {
   return result;
 }
 
-struct exp *create_exp(Token *token) {
-  struct exp *result = allocate_or_error(sizeof(struct exp));
-
-  result->token = token;
-
-  return result;
-}
-
 struct stmt_list *create_stmt_list() {
   struct stmt_list *result = allocate_or_error(sizeof(struct stmt_list));
 
@@ -81,7 +73,7 @@ struct else_stmt *create_else_stmt(struct stmt *stmt) {
   return result;
 }
 
-struct stmt *create_if_stmt(struct exp *exp, struct stmt *stmt,
+struct stmt *create_if_stmt(struct expression *exp, struct stmt *stmt,
                             struct else_stmt *opt_else) {
   struct stmt *result = allocate_or_error(sizeof(struct stmt));
 
@@ -95,7 +87,7 @@ struct stmt *create_if_stmt(struct exp *exp, struct stmt *stmt,
   return result;
 }
 
-struct stmt *create_return_stmt(struct exp *opt_exp) {
+struct stmt *create_return_stmt(struct expression *opt_exp) {
   struct stmt *result = allocate_or_error(sizeof(struct stmt));
 
   result->type = RETURN;
@@ -131,27 +123,205 @@ struct stmt_list *append_stmt(struct stmt *stmt, struct stmt_list *list) {
   return list;
 }
 
+struct expression *create_ternary_exp(struct expression *cond,
+                                      struct expression *trueval,
+                                      struct expression *falseval) {
+  struct expression *result = allocate_or_error(sizeof(struct expression));
+
+  result->type = TERNARY;
+  result->exp._ternary.cond = cond;
+  result->exp._ternary.true_val = trueval;
+  result->exp._ternary.false_val = falseval;
+
+  return result;
+}
+
+struct expression *create_binary_exp(Token *op, struct expression *right) {
+  struct expression *result = allocate_or_error(sizeof(struct expression));
+
+  result->type = BINARY;
+  result->exp._binary.op = op;
+  result->exp._binary.left = NULL;
+  result->exp._binary.right = right;
+
+  return result;
+}
+
+struct expression *set_left_binary_exp(struct expression *left,
+                                       struct expression *bin_expr) {
+  if (bin_expr->type != BINARY) {
+    ERROR("ast", "Attempt to set left child of a non-binary expression!");
+  }
+
+  bin_expr->exp._binary.left = left;
+  return bin_expr;
+}
+
+struct expression *create_cast_exp(struct type *type,
+                                   struct expression *child) {
+  struct expression *result = allocate_or_error(sizeof(struct expression));
+
+  result->type = CAST;
+  result->exp._cast.type = type;
+  result->exp._cast.child = child;
+
+  return result;
+}
+
+struct expression *create_prefix_exp(Token *op, struct expression *child) {
+  struct expression *result = allocate_or_error(sizeof(struct expression));
+
+  result->type = PREFIX;
+  result->exp._prefix.op = op;
+  result->exp._prefix.child = child;
+
+  return result;
+}
+
+struct expression *create_postfix_exp(enum postfix_exps type,
+                                      struct expression *child) {
+  struct expression *result = allocate_or_error(sizeof(struct expression));
+
+  result->type = POSTFIX;
+  result->exp._postfix.type = type;
+  result->exp._postfix.child = child;
+
+  return result;
+}
+
+struct expression *create_postfix_exp_index(struct expression *child,
+                                            struct expression *index) {
+  struct expression *result = allocate_or_error(sizeof(struct expression));
+
+  result->type = POSTFIX;
+  result->exp._postfix.type = INDEX;
+  result->exp._postfix.child = child;
+  result->exp._postfix.postfix.index = index;
+
+  return result;
+}
+
+struct expression *create_postfix_exp_attr(enum postfix_exps type, Token *attr,
+                                           struct expression *child) {
+  struct expression *result = allocate_or_error(sizeof(struct expression));
+
+  result->type = POSTFIX;
+  result->exp._postfix.type = type;
+  result->exp._postfix.child = child;
+  result->exp._postfix.postfix.attribute = create_id(attr);
+
+  return result;
+}
+
+struct expression *create_constant_exp(Token *token) {
+  struct expression *result = allocate_or_error(sizeof(struct expression));
+
+  result->type = CONSTANT;
+  result->exp._constant.token = token;
+
+  return result;
+}
+
+struct expression *create_id_exp(Token *token) {
+  struct expression *result = allocate_or_error(sizeof(struct expression));
+
+  result->type = IDENTIFIER_EXPR;
+  result->exp._id.id = create_id(token);
+
+  return result;
+}
+
+void destroy_stmt(struct stmt *stmt);
+void destroy_stmt_list(struct stmt_list *stmt_list);
+void destroy_expression(struct expression *exp);
+
 void destroy_type(struct type *type) { free(type); }
 
 void destroy_id(struct id *id) { free(id); }
 
-void destroy_exp(struct exp *exp) { free(exp); }
-
-void destroy_stmt_list(struct stmt_list *stmt_list) {
-  for (struct stmt *cur = stmt_list->head; cur != NULL;) {
-    struct stmt *next = cur->next;
-    destroy_stmt(cur);
-    cur = next;
-  }
-
-  free(stmt_list);
+void destroy_ternary_exp(struct expression *exp) {
+  destroy_expression(exp->exp._ternary.cond);
+  destroy_expression(exp->exp._ternary.true_val);
+  destroy_expression(exp->exp._ternary.false_val);
+  free(exp);
 }
 
-void destroy_function(struct function *function) {
-  destroy_type(function->return_type);
-  destroy_id(function->name);
-  destroy_stmt_list(function->body);
-  free(function);
+void destroy_binary_exp(struct expression *exp) {
+  destroy_expression(exp->exp._binary.left);
+  destroy_expression(exp->exp._binary.right);
+  free(exp);
+}
+
+void destroy_cast_exp(struct expression *exp) {
+  destroy_type(exp->exp._cast.type);
+  destroy_expression(exp->exp._cast.child);
+  free(exp);
+}
+
+void destroy_prefix_exp(struct expression *exp) {
+  destroy_expression(exp->exp._prefix.child);
+  free(exp);
+}
+
+void destroy_postfix_exp_index(struct expression *exp) {
+  destroy_expression(exp->exp._postfix.postfix.index);
+  destroy_expression(exp->exp._postfix.child);
+  free(exp);
+}
+
+void destroy_postfix_exp_attr(struct expression *exp) {
+  destroy_id(exp->exp._postfix.postfix.attribute);
+  destroy_expression(exp->exp._postfix.child);
+  free(exp);
+}
+
+void destroy_postfix_exp(struct expression *exp) {
+  switch (exp->exp._postfix.type) {
+  case INDEX:
+    destroy_postfix_exp_index(exp);
+    return;
+  case DOT:
+  case ARROW:
+    destroy_postfix_exp_attr(exp);
+    return;
+  default: break;
+  }
+
+  destroy_expression(exp->exp._postfix.child);
+  free(exp);
+}
+
+void destroy_constant_exp(struct expression *exp) { free(exp); }
+
+void destroy_id_exp(struct expression *exp) {
+  destroy_id(exp->exp._id.id);
+  free(exp);
+}
+
+void destroy_expression(struct expression *exp) {
+  switch (exp->type) {
+  case IDENTIFIER_EXPR:
+    destroy_id_exp(exp);
+    break;
+  case CONSTANT:
+    destroy_constant_exp(exp);
+    break;
+  case POSTFIX:
+    destroy_postfix_exp(exp);
+    break;
+  case PREFIX:
+    destroy_prefix_exp(exp);
+    break;
+  case CAST:
+    destroy_cast_exp(exp);
+    break;
+  case BINARY:
+    destroy_binary_exp(exp);
+    break;
+  case TERNARY:
+    destroy_ternary_exp(exp);
+    break;
+  }
 }
 
 void destroy_else_stmt(struct else_stmt *else_stmt) {
@@ -160,7 +330,7 @@ void destroy_else_stmt(struct else_stmt *else_stmt) {
 }
 
 void destroy_if_stmt(struct if_stmt *if_stmt) {
-  destroy_exp(if_stmt->condition);
+  destroy_expression(if_stmt->condition);
   destroy_stmt(if_stmt->body);
 
   if (if_stmt->opt_else)
@@ -172,7 +342,7 @@ void destroy_if_stmt(struct if_stmt *if_stmt) {
 
 void destroy_return_stmt(struct return_stmt *return_stmt) {
   if (return_stmt->opt_exp)
-    destroy_exp(return_stmt->opt_exp);
+    destroy_expression(return_stmt->opt_exp);
 
   // Not dynamically allocated.
   // free(return_stmt);
@@ -199,4 +369,26 @@ void destroy_stmt(struct stmt *stmt) {
   }
 
   free(stmt);
+}
+
+void destroy_stmt_list(struct stmt_list *stmt_list) {
+  for (struct stmt *cur = stmt_list->head; cur != NULL;) {
+    struct stmt *next = cur->next;
+    destroy_stmt(cur);
+    cur = next;
+  }
+
+  free(stmt_list);
+}
+
+void destroy_function(struct function *function) {
+  destroy_type(function->return_type);
+  destroy_id(function->name);
+  destroy_stmt_list(function->body);
+  free(function);
+}
+
+void destroy_tree() {
+  if (root)
+    destroy_function(root);
 }

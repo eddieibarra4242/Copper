@@ -10,7 +10,7 @@
   Token *tokenval;
   struct type *typeval;
   struct id *idval;
-  struct exp *expval;
+  struct expression *expval;
   struct stmt_list *listval;
   struct function *functionval;
   struct else_stmt *elseval;
@@ -24,6 +24,10 @@
 %token K_IF "if"
 %token K_ELSE "else"
 
+%token P_ARROW "->"
+%token P_PLUS "++"
+%token P_MINUS "--"
+
 %type<tokenval> ID
 %type<typeval> type
 %type<stmtval> compound_stmt
@@ -31,7 +35,9 @@
 %type<listval> stmt_list
 %type<stmtval> stmt
 %type<tokenval> NUM
-%type<expval> exp
+%type<expval> expression
+%type<expval> postfix_expression
+%type<expval> base_expression
 %type<expval> opt_exp
 %type<stmtval> if_stmt
 %type<elseval> opt_else_stmt
@@ -46,16 +52,28 @@
   stmt_list: %empty { $$ = create_stmt_list(); }
   | stmt stmt_list { $$ = append_stmt($1, $2); }
 
-  exp: NUM { $$ = create_exp($1); }
+  expression: postfix_expression { $$ = $1; }
+
+  postfix_expression: base_expression { $$ = $1; }
+    | postfix_expression '[' expression ']' { $$ = create_postfix_exp_index($1, $3); }
+    | postfix_expression '.' ID { $$ = create_postfix_exp_attr(DOT, $3, $1); }
+    | postfix_expression "->" ID { $$ = create_postfix_exp_attr(ARROW, $3, $1); }
+    | postfix_expression "++" { $$ = create_postfix_exp(INCREMENT, $1); }
+    | postfix_expression "--" { $$ = create_postfix_exp(DECREMENT, $1); }
+
+  base_expression: ID { $$ = create_id_exp($1); }
+    | NUM { $$ = create_constant_exp($1); }
+    | '(' expression ')' { $$ = $2; }
+    /* | STRING */ ;
 
   opt_exp: %empty { $$ = NULL; }
-  | exp { $$ = $1; }
+  | expression { $$ = $1; }
 
   stmt: "return" opt_exp ';' { $$ = create_return_stmt($2); }
   | if_stmt { $$ = $1; }
   | compound_stmt { $$ = $1; }
 
-  if_stmt: "if" '(' exp ')' stmt opt_else_stmt { $$ = create_if_stmt($3, $5, $6); }
+  if_stmt: "if" '(' expression ')' stmt opt_else_stmt { $$ = create_if_stmt($3, $5, $6); }
 
   opt_else_stmt: %empty { $$ = NULL; }
   | else_stmt { $$ = $1; }
@@ -99,7 +117,16 @@ int get_punct() {
 
   const char *comp = next->data;
 
-  // TODO: return multi-char punctuation (eg. "->", "==", etc.)
+  if (strcmp(next->data, "->") == 0) {
+    return P_ARROW;
+  } else if (strcmp(next->data, "++") == 0) {
+    return P_PLUS;
+  } else if (strcmp(next->data, "--") == 0) {
+    return P_MINUS;
+  }
+
+  if ((next->end - next->start) > 1)
+    return YYUNDEF;
 
   return (int)comp[0];
 }

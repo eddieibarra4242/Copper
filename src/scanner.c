@@ -176,6 +176,8 @@ Token *scan(const char *file) {
 
       if (file[i] == '-')
         i++;
+      else if (file[i] == '>')
+        i++;
     } else if (file[i] == '&') {
       i++;
 
@@ -199,6 +201,11 @@ Token *scan(const char *file) {
       if (file[i] == '>')
         i++;
       else if (file[i] == '=')
+        i++;
+    } else if (file[i] == '=') {
+      i++;
+
+      if (file[i] == '=')
         i++;
     } else {
       size_t lineno = seen_newlines + 1;

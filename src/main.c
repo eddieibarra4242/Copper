@@ -67,7 +67,7 @@ int main(int args, char **argv) {
   print_ast();
 #endif
 
-  destroy_function(get_tree());
+  destroy_tree();
   free_list(tokens);
 
   return 0;
