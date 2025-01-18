@@ -152,9 +152,8 @@ struct expression *create_ternary_exp(struct expression *cond,
                                       struct expression *trueval,
                                       struct expression *falseval);
 
-struct expression *create_binary_exp(Token *op, struct expression *right);
-struct expression *set_left_binary_exp(struct expression *left,
-                                       struct expression *bin_expr);
+struct expression *create_binary_exp(struct expression *left, Token *op,
+                                     struct expression *right);
 
 struct expression *create_cast_exp(struct type *type, struct expression *child);
 struct expression *create_prefix_exp(Token *op, struct expression *child);

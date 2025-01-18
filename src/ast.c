@@ -136,27 +136,17 @@ struct expression *create_ternary_exp(struct expression *cond,
   return result;
 }
 
-struct expression *create_binary_exp(Token *op, struct expression *right) {
+struct expression *create_binary_exp(struct expression *left, Token *op,
+                                     struct expression *right) {
   struct expression *result = allocate_or_error(sizeof(struct expression));
 
   result->type = BINARY;
+  result->exp._binary.left = left;
   result->exp._binary.op = op;
-  result->exp._binary.left = NULL;
   result->exp._binary.right = right;
 
   return result;
 }
-
-struct expression *set_left_binary_exp(struct expression *left,
-                                       struct expression *bin_expr) {
-  if (bin_expr->type != BINARY) {
-    ERROR("ast", "Attempt to set left child of a non-binary expression!");
-  }
-
-  bin_expr->exp._binary.left = left;
-  return bin_expr;
-}
-
 struct expression *create_cast_exp(struct type *type,
                                    struct expression *child) {
   struct expression *result = allocate_or_error(sizeof(struct expression));

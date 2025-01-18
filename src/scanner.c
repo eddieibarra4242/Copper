@@ -5,7 +5,7 @@
 #include <stdbool.h>
 #include <string.h>
 
-const char *keywords[] = {"int", "return", "if", "else"};
+const char *keywords[] = {"int", "return", "if", "else", "sizeof"};
 
 size_t seen_newlines = 0;
 long last_newline = 0;
