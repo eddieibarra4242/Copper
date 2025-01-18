@@ -164,7 +164,8 @@ Token *scan(const char *file) {
     } else if (file[i] == '(' || file[i] == ')' || file[i] == '{' ||
                file[i] == '}' || file[i] == '?' || file[i] == ':' ||
                file[i] == '~' || file[i] == '*' || file[i] == '/' ||
-               file[i] == '!' || file[i] == '%' || file[i] == ';') {
+               file[i] == '!' || file[i] == '%' || file[i] == ';' ||
+               file[i] == '[' || file[i] == ']' || file[i] == '.') {
       i++;
     } else if (file[i] == '+') {
       i++;

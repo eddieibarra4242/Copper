@@ -115,8 +115,8 @@ void print_postfix_exp_index(struct expression *exp) {
   print("Postfix Expression (index)");
 
   stack++;
-  print_expression(exp->exp._postfix.postfix.index);
   print_expression(exp->exp._postfix.child);
+  print_expression(exp->exp._postfix.postfix.index);
   stack--;
 }
 
@@ -124,8 +124,8 @@ void print_postfix_exp_attr(struct expression *exp) {
   print("Postfix Expression (attr)");
 
   stack++;
-  print_id(exp->exp._postfix.postfix.attribute);
   print_expression(exp->exp._postfix.child);
+  print_id(exp->exp._postfix.postfix.attribute);
   stack--;
 }
 
@@ -141,10 +141,20 @@ void print_postfix_exp(struct expression *exp) {
   default: break;
   }
 
+  const char* type = "";
+
+  switch (exp->exp._postfix.type) {
+  case INCREMENT: type = "`++`"; break;
+  case DECREMENT:
+    type = "`--`";
+    break;
+  default: break;
+  }
+
   print("Postfix Expression");
 
   stack++;
-  print("Type %d", exp->exp._postfix.type);
+  print("Type %s", type);
   print_expression(exp->exp._postfix.child);
   stack--;
 }
@@ -158,7 +168,7 @@ void print_constant_exp(struct expression *exp) {
 }
 
 void print_id_exp(struct expression *exp) {
-  print("ID Expression");
+  print("Id Expression");
 
   stack++;
   print_id(exp->exp._id.id);
