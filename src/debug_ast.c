@@ -180,7 +180,7 @@ void print_expression(struct expression *exp) {
   case IDENTIFIER_EXPR:
     print_id_exp(exp);
     break;
-  case CONSTANT:
+  case CONSTANT_EXPR:
     print_constant_exp(exp);
     break;
   case POSTFIX:
