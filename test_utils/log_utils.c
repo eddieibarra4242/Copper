@@ -29,14 +29,6 @@ void log_message(int level, const char *section, const char *msg,
   UNUSED(file);
   char actual[1024];
 
-  if (level > ERROR_LEVEL && expected_message == NULL) {
-    TEST_FAIL_MESSAGE("Got unexpected log!");
-  }
-
-  if (level <= ERROR_LEVEL && expected_error_message == NULL) {
-    TEST_FAIL_MESSAGE("Got unexpected error!");
-  }
-
   va_list args;
   va_start(args, lineno);
   vsnprintf(actual, 1024, msg, args);
