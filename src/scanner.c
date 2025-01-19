@@ -561,6 +561,110 @@ size_t scan_number(const char *file, size_t index) {
   return i;
 }
 
+size_t scan_simple_esc(const char *file, size_t index) {
+  size_t i = index;
+
+  if (file[i] == '\'' || file[i] == '"' || file[i] == '?' || file[i] == '\\' ||
+      file[i] == 'a' || file[i] == 'b' || file[i] == 'f' || file[i] == 'n' ||
+      file[i] == 'r' || file[i] == 't' || file[i] == 'v') {
+    i++;
+  } else {
+    SCANNER_ERROR("', \", ?, \\, a, b, f, n, r, t, v");
+  }
+
+  return i;
+}
+
+size_t scan_octal_esc(const char *file, size_t index) {
+  size_t i = index;
+
+  if (is_octal_digit(file[i])) {
+    i++;
+  } else {
+    SCANNER_ERROR(OCT_DIGIT_SEQ);
+  }
+
+  if (is_octal_digit(file[i])) {
+    i++;
+  }
+
+  if (is_octal_digit(file[i])) {
+    i++;
+  }
+
+  return i;
+}
+
+size_t scan_hexadecimal_esc(const char *file, size_t index) {
+  size_t i = index;
+
+  if (file[i] == '\\') {
+    i++;
+  } else {
+    SCANNER_ERROR("\\");
+  }
+
+  if (file[i] == 'x') {
+    i++;
+  } else {
+    SCANNER_ERROR("x");
+  }
+
+  if (is_hex_digit(file[i])) {
+    i++;
+  } else {
+    SCANNER_ERROR(HEX_DIGIT_SEQ);
+  }
+
+  while (is_hex_digit(file[i])) {
+    i++;
+  }
+
+  return i;
+}
+
+size_t scan_char(const char *file, size_t index) {
+  size_t i = index;
+
+  if (memcmp(&file[i], "\\u", 2) == 0) {
+    i = scan_universal_character(file, index);
+  } else if (memcmp(&file[i], "\\x", 2) == 0) {
+    i = scan_hexadecimal_esc(file, index);
+  } else if (file[i] == '\\') {
+    i++;
+
+    if (is_octal_digit(file[i])) {
+      i = scan_octal_esc(file, i);
+    } else {
+      i = scan_simple_esc(file, i);
+    }
+  } else {
+    i++;
+  }
+
+  return i;
+}
+
+size_t scan_c_char_seq(const char *file, size_t index) {
+  size_t i = index;
+
+  if (file[i] == '\'') {
+    i++;
+  } else {
+    SCANNER_ERROR("\'");
+  }
+
+  i = scan_char(file, i);
+
+  if (file[i] == '\'') {
+    i++;
+  } else {
+    SCANNER_ERROR("\'");
+  }
+
+  return i;
+}
+
 Token *alloc_new_token(const char *value, kind_t kind, size_t start, size_t end,
                        Coord start_coord) {
   size_t value_length = end - start;
@@ -633,6 +737,26 @@ Token *scan(const char *file) {
         i = scan_inline_comment(file, i);
         continue;
       }
+    } else if (file[i] == 'u') {
+      kind = IDENTIFIER;
+      i++;
+
+      if (file[i] == '8') {
+        kind = CONSTANT;
+        i++;
+        i = scan_c_char_seq(file, i);
+      } else if (file[i] == '\'') {
+        kind = CONSTANT;
+        i = scan_c_char_seq(file, i);
+      }
+    } else if (file[i] == 'U' || file[i] == 'L') {
+      kind = IDENTIFIER;
+      i++;
+
+      if (file[i] == '\'') {
+        kind = CONSTANT;
+        i = scan_c_char_seq(file, i);
+      }
     } else if (is_nondigit(file[i])) {
       kind = IDENTIFIER;
       i = scan_identifier(file, i);
@@ -653,6 +777,9 @@ Token *scan(const char *file) {
         i = scan_fractional_const(file, i - 1);
         i = scan_floating_suffix(file, i);
       }
+    } else if (file[i] == '\'') {
+      kind = CONSTANT;
+      i = scan_c_char_seq(file, i);
     } else if (file[i] == '+') {
       i++;
 

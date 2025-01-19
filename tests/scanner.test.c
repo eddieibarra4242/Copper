@@ -263,3 +263,24 @@ void test_float(void) {
     TEST_ASSERT_EQUAL(CONSTANT, cur->kind);
   }
 }
+
+// TODO: need more float tests.
+
+void test_chars(void) {
+  const char *input = "u8'\\uabcd' u'\\x12ef' L'\\777' '\\a' 'f' 'a' '$' '@'";
+  Token *tokens = scan(input);
+
+  size_t list_length = get_token_list_length(tokens);
+
+  // 8 chars + 1 EOF
+  TEST_ASSERT_EQUAL(8 + 1, list_length);
+
+  for (Token *cur = tokens; cur != NULL; cur = cur->next) {
+    if (cur->kind == EOF)
+      break;
+
+    TEST_ASSERT_EQUAL(CONSTANT, cur->kind);
+  }
+}
+
+// TODO: need more float tests.
