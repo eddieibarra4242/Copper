@@ -2,166 +2,93 @@
 #define _GNU_SOURCE
 #include "parser.h"
 #include "log.h"
-#include "ast.h"
 #include <string.h>
 %}
 
 %union {
   Token *tokenval;
-  struct type *typeval;
-  struct id *idval;
-  struct expression *expval;
-  struct stmt_list *listval;
-  struct function *functionval;
-  struct else_stmt *elseval;
-  struct stmt *stmtval;
 }
 
-%token ID
-%token NUM
-%token K_INT "int"
-%token K_RETURN "return"
-%token K_IF "if"
-%token K_ELSE "else"
-%token K_SIZEOF "sizeof"
+%token ID CONST STR
+
+%token K_alignas "alignas"
+%token K_alignof "alignof"
+%token K_auto "auto"
+%token K_bool "bool"
+%token K_break "break"
+%token K_case "case"
+%token K_char "char"
+%token K_const "const"
+%token K_constexpr "constexpr"
+%token K_continue "continue"
+%token K_default "default"
+%token K_do "do"
+%token K_double "double"
+%token K_else "else"
+%token K_enum "enum"
+%token K_extern "extern"
+%token K_float "float"
+%token K_for "for"
+%token K_goto "goto"
+%token K_if "if"
+%token K_inline "inline"
+%token K_int "int"
+%token K_long "long"
+%token K_register "register"
+%token K_restrict "restrict"
+%token K_return "return"
+%token K_short "short"
+%token K_signed "signed"
+%token K_sizeof "sizeof"
+%token K_static "static"
+%token K_static_assert "static_assert"
+%token K_struct "struct"
+%token K_switch "switch"
+%token K_thread_local "thread_local"
+%token K_typedef "typedef"
+%token K_typeof "typeof"
+%token K_typeof_unqual "typeof_unqual"
+%token K_union "union"
+%token K_unsigned "unsigned"
+%token K_void "void"
+%token K_volatile "volatile"
+%token K_while "while"
+%token K__Atomic "_Atomic"
+%token K__BitInt "_BitInt"
+%token K__Complex "_Complex"
+%token K__Decimal128 "_Decimal128"
+%token K__Decimal32 "_Decimal32"
+%token K__Decimal64 "_Decimal64"
+%token K__Generic "_Generic"
+%token K__Imaginary "_Imaginary"
+%token K__Noreturn "_Noreturn"
 
 %token P_ARROW "->"
-%token P_PLUS "++"
-%token P_MINUS "--"
-%token P_SFHR ">>"
-%token P_SFHL "<<"
-%token P_LOR "||"
-%token P_LAND "&&"
-%token P_GTE ">="
+%token P_INC "++"
+%token P_DEC "--"
+%token P_SHFL "<<"
+%token P_SHFR ">>"
 %token P_LTE "<="
-
-%type<tokenval> ID
-%type<typeval> type
-%type<stmtval> compound_stmt
-%type<functionval> function
-%type<listval> stmt_list
-%type<stmtval> stmt
-%type<tokenval> NUM
-%type<expval> expression
-%type<expval> conditional_expr
-%type<expval> logical_or_expr
-%type<expval> logical_and_expr
-%type<expval> or_expr
-%type<expval> xor_expr
-%type<expval> and_expr
-%type<expval> eq_expr
-%type<expval> rela_expr
-%type<expval> shift_expr
-%type<expval> add_expr
-%type<expval> mul_expr
-%type<expval> cast_expr
-%type<expval> prefix_expression
-%type<expval> postfix_expression
-%type<expval> base_expression
-%type<tokenval> unary_op
-%type<expval> opt_exp
-%type<stmtval> if_stmt
-%type<elseval> opt_else_stmt
-%type<elseval> else_stmt
-%type<tokenval> "int" "++" "--" "sizeof" '*' '+' '-' '~' '!' "<<"
-%type<tokenval> ">>" "<=" ">=" '>' '<' "!=" "==" '&' '^' '|' "||"
-%type<tokenval> "&&" '/' '%'
+%token P_GTE ">="
+%token P_EE "=="
+%token P_NE "!="
+%token P_LAND "&&"
+%token P_LOR "||"
+%token P_DCOLON "::"
+%token P_ELLIPSIS "..."
+%token P_STARE "*="
+%token P_SLASHE "/="
+%token P_PERCENTE "%="
+%token P_PLUSE "+="
+%token P_MINUSE "-="
+%token P_SHFLE "<<="
+%token P_SHFRE ">>="
+%token P_ANDE "&="
+%token P_CARATE "^="
+%token P_ORE "|="
+%token P_DHASH "##"
 
 %%
-  function: type ID '(' ')' compound_stmt { $$ = create_function($1, $2, $5); }
-
-  compound_stmt: '{' stmt_list '}' { $$ = create_compound_stmt($2); }
-
-  stmt_list: %empty { $$ = create_stmt_list(); }
-  | stmt stmt_list { $$ = append_stmt($1, $2); }
-
-  expression: conditional_expr { $$ = $1; }
-
-  conditional_expr: logical_or_expr { $$ = $1; }
-    | logical_or_expr '?' expression ':' conditional_expr { $$ = create_ternary_exp($1, $3, $5); }
-
-  logical_or_expr: logical_and_expr { $$ = $1; }
-    | logical_or_expr "||" logical_and_expr { $$ = create_binary_exp($1, $2, $3); }
-
-  logical_and_expr: or_expr { $$ = $1; }
-    | logical_and_expr "&&" or_expr { $$ = create_binary_exp($1, $2, $3); }
-
-  or_expr: xor_expr { $$ = $1; }
-    | or_expr '|' xor_expr { $$ = create_binary_exp($1, $2, $3); }
-
-  xor_expr: and_expr { $$ = $1; }
-    | xor_expr '^' and_expr { $$ = create_binary_exp($1, $2, $3); }
-
-  and_expr: eq_expr { $$ = $1; }
-    | and_expr '&' eq_expr { $$ = create_binary_exp($1, $2, $3); }
-
-  eq_expr: rela_expr { $$ = $1; }
-    | eq_expr "==" rela_expr { $$ = create_binary_exp($1, $2, $3); }
-    | eq_expr "!=" rela_expr { $$ = create_binary_exp($1, $2, $3); }
-
-  rela_expr: shift_expr { $$ = $1; }
-    | rela_expr '>' shift_expr { $$ = create_binary_exp($1, $2, $3); }
-    | rela_expr '<' shift_expr { $$ = create_binary_exp($1, $2, $3); }
-    | rela_expr ">=" shift_expr { $$ = create_binary_exp($1, $2, $3); }
-    | rela_expr "<=" shift_expr { $$ = create_binary_exp($1, $2, $3); }
-
-  shift_expr: add_expr { $$ = $1; }
-    | shift_expr ">>" add_expr { $$ = create_binary_exp($1, $2, $3); }
-    | shift_expr "<<" add_expr { $$ = create_binary_exp($1, $2, $3); }
-
-  add_expr: mul_expr { $$ = $1; }
-    | add_expr '+' mul_expr { $$ = create_binary_exp($1, $2, $3); }
-    | add_expr '-' mul_expr { $$ = create_binary_exp($1, $2, $3); }
-
-  mul_expr: cast_expr { $$ = $1; }
-    | mul_expr '*' cast_expr { $$ = create_binary_exp($1, $2, $3); }
-    | mul_expr '/' cast_expr { $$ = create_binary_exp($1, $2, $3); }
-    | mul_expr '%' cast_expr { $$ = create_binary_exp($1, $2, $3); }
-
-  cast_expr: prefix_expression { $$ = $1; }
-    | '(' type ')' cast_expr { $$ = create_cast_exp($2, $4); }
-
-  prefix_expression: postfix_expression { $$ = $1; }
-    | "++" prefix_expression { $$ = create_prefix_exp($1, $2); }
-    | "--" prefix_expression { $$ = create_prefix_exp($1, $2); }
-    | unary_op prefix_expression { $$ = create_prefix_exp($1, $2); }
-    | "sizeof" prefix_expression { $$ = create_prefix_exp($1, $2); }
-    /* | "sizeof" type { } */
-
-  postfix_expression: base_expression { $$ = $1; }
-    | postfix_expression '[' expression ']' { $$ = create_postfix_exp_index($1, $3); }
-    | postfix_expression '.' ID { $$ = create_postfix_exp_attr(DOT, $3, $1); }
-    | postfix_expression "->" ID { $$ = create_postfix_exp_attr(ARROW, $3, $1); }
-    | postfix_expression "++" { $$ = create_postfix_exp(INCREMENT, $1); }
-    | postfix_expression "--" { $$ = create_postfix_exp(DECREMENT, $1); }
-
-  base_expression: ID { $$ = create_id_exp($1); }
-    | NUM { $$ = create_constant_exp($1); }
-    | '(' expression ')' { $$ = $2; }
-    /* | STRING */ ;
-
-  unary_op: '&' { $$ = $1; }
-    | '*' { $$ = $1; }
-    | '+' { $$ = $1; }
-    | '-' { $$ = $1; }
-    | '~' { $$ = $1; }
-    | '!' { $$ = $1; }
-
-  opt_exp: %empty { $$ = NULL; }
-  | expression { $$ = $1; }
-
-  stmt: "return" opt_exp ';' { $$ = create_return_stmt($2); }
-  | if_stmt { $$ = $1; }
-  | compound_stmt { $$ = $1; }
-
-  if_stmt: "if" '(' expression ')' stmt opt_else_stmt { $$ = create_if_stmt($3, $5, $6); }
-
-  opt_else_stmt: %empty { $$ = NULL; }
-  | else_stmt { $$ = $1; }
-
-  else_stmt: "else" stmt { $$ = create_else_stmt($2); }
-
-  type: "int" { $$ = create_type($1); }
 %%
 
 Token *cur;
@@ -179,17 +106,57 @@ int get_keyword() {
   if (!next)
     return YYUNDEF;
 
-  if (strcmp(next->data, "int") == 0) {
-    return K_INT;
-  } else if (strcmp(next->data, "return") == 0) {
-    return K_RETURN;
-  } else if (strcmp(next->data, "if") == 0) {
-    return K_IF;
-  } else if (strcmp(next->data, "else") == 0) {
-    return K_ELSE;
-  } else if (strcmp(next->data, "sizeof") == 0) {
-    return K_SIZEOF;
-  }
+  if (strcmp(next->data, "alignas") == 0) return K_alignas;
+  if (strcmp(next->data, "alignof") == 0) return K_alignof;
+  if (strcmp(next->data, "auto") == 0) return K_auto;
+  if (strcmp(next->data, "bool") == 0) return K_bool;
+  if (strcmp(next->data, "break") == 0) return K_break;
+  if (strcmp(next->data, "case") == 0) return K_case;
+  if (strcmp(next->data, "char") == 0) return K_char;
+  if (strcmp(next->data, "const") == 0) return K_const;
+  if (strcmp(next->data, "constexpr") == 0) return K_constexpr;
+  if (strcmp(next->data, "continue") == 0) return K_continue;
+  if (strcmp(next->data, "default") == 0) return K_default;
+  if (strcmp(next->data, "do") == 0) return K_do;
+  if (strcmp(next->data, "double") == 0) return K_double;
+  if (strcmp(next->data, "else") == 0) return K_else;
+  if (strcmp(next->data, "enum") == 0) return K_enum;
+  if (strcmp(next->data, "extern") == 0) return K_extern;
+  if (strcmp(next->data, "float") == 0) return K_float;
+  if (strcmp(next->data, "for") == 0) return K_for;
+  if (strcmp(next->data, "goto") == 0) return K_goto;
+  if (strcmp(next->data, "if") == 0) return K_if;
+  if (strcmp(next->data, "inline") == 0) return K_inline;
+  if (strcmp(next->data, "int") == 0) return K_int;
+  if (strcmp(next->data, "long") == 0) return K_long;
+  if (strcmp(next->data, "register") == 0) return K_register;
+  if (strcmp(next->data, "restrict") == 0) return K_restrict;
+  if (strcmp(next->data, "return") == 0) return K_return;
+  if (strcmp(next->data, "short") == 0) return K_short;
+  if (strcmp(next->data, "signed") == 0) return K_signed;
+  if (strcmp(next->data, "sizeof") == 0) return K_sizeof;
+  if (strcmp(next->data, "static") == 0) return K_static;
+  if (strcmp(next->data, "static_assert") == 0) return K_static_assert;
+  if (strcmp(next->data, "struct") == 0) return K_struct;
+  if (strcmp(next->data, "switch") == 0) return K_switch;
+  if (strcmp(next->data, "thread_local") == 0) return K_thread_local;
+  if (strcmp(next->data, "typedef") == 0) return K_typedef;
+  if (strcmp(next->data, "typeof") == 0) return K_typeof;
+  if (strcmp(next->data, "typeof_unqual") == 0) return K_typeof_unqual;
+  if (strcmp(next->data, "union") == 0) return K_union;
+  if (strcmp(next->data, "unsigned") == 0) return K_unsigned;
+  if (strcmp(next->data, "void") == 0) return K_void;
+  if (strcmp(next->data, "volatile") == 0) return K_volatile;
+  if (strcmp(next->data, "while") == 0) return K_while;
+  if (strcmp(next->data, "_Atomic") == 0) return K__Atomic;
+  if (strcmp(next->data, "_BitInt") == 0) return K__BitInt;
+  if (strcmp(next->data, "_Complex") == 0) return K__Complex;
+  if (strcmp(next->data, "_Decimal128") == 0) return K__Decimal128;
+  if (strcmp(next->data, "_Decimal32") == 0) return K__Decimal32;
+  if (strcmp(next->data, "_Decimal64") == 0) return K__Decimal64;
+  if (strcmp(next->data, "_Generic") == 0) return K__Generic;
+  if (strcmp(next->data, "_Imaginary") == 0) return K__Imaginary;
+  if (strcmp(next->data, "_Noreturn") == 0) return K__Noreturn;
 
   return YYUNDEF;
 }
@@ -200,30 +167,44 @@ int get_punct() {
 
   const char *comp = next->data;
 
-  if (strcmp(next->data, "->") == 0) {
-    return P_ARROW;
-  } else if (strcmp(next->data, "++") == 0) {
-    return P_PLUS;
-  } else if (strcmp(next->data, "--") == 0) {
-    return P_MINUS;
-  } else if (strcmp(next->data, "||") == 0) {
-    return P_LOR;
-  } else if (strcmp(next->data, "&&") == 0) {
-    return P_LAND;
-  } else if (strcmp(next->data, ">>") == 0) {
-    return P_SFHR;
-  } else if (strcmp(next->data, "<<") == 0) {
-    return P_SFHL;
-  } else if (strcmp(next->data, ">=") == 0) {
-    return P_GTE;
-  } else if (strcmp(next->data, "<=") == 0) {
-    return P_LTE;
+  if (next->length == 1) {
+    return comp[0];
   }
 
-  if (next->length > 1)
-    return YYUNDEF;
+  if (strcmp(comp, "->") == 0) return P_ARROW;
+  if (strcmp(comp, "++") == 0) return P_INC;
+  if (strcmp(comp, "--") == 0) return P_DEC;
+  if (strcmp(comp, "<<") == 0) return P_SHFL;
+  if (strcmp(comp, ">>") == 0) return P_SHFR;
+  if (strcmp(comp, "<=") == 0) return P_LTE;
+  if (strcmp(comp, ">=") == 0) return P_GTE;
+  if (strcmp(comp, "==") == 0) return P_EE;
+  if (strcmp(comp, "!=") == 0) return P_NE;
+  if (strcmp(comp, "&&") == 0) return P_LAND;
+  if (strcmp(comp, "||") == 0) return P_LOR;
+  if (strcmp(comp, "::") == 0) return P_DCOLON;
+  if (strcmp(comp, "...") == 0) return P_ELLIPSIS;
+  if (strcmp(comp, "*=") == 0) return P_STARE;
+  if (strcmp(comp, "/=") == 0) return P_SLASHE;
+  if (strcmp(comp, "%=") == 0) return P_PERCENTE;
+  if (strcmp(comp, "+=") == 0) return P_PLUSE;
+  if (strcmp(comp, "-=") == 0) return P_MINUSE;
+  if (strcmp(comp, "<<=") == 0) return P_SHFLE;
+  if (strcmp(comp, ">>=") == 0) return P_SHFRE;
+  if (strcmp(comp, "&=") == 0) return P_ANDE;
+  if (strcmp(comp, "^=") == 0) return P_CARATE;
+  if (strcmp(comp, "|=") == 0) return P_ORE;
+  if (strcmp(comp, "##") == 0) return P_DHASH;
 
-  return (int)comp[0];
+  // See ISO/IEC 9899:2023 § 6.4.6 cl. 3
+  if (strcmp(comp, "<:") == 0) return '[';
+  if (strcmp(comp, ":>") == 0) return ']';
+  if (strcmp(comp, "<%") == 0) return '{';
+  if (strcmp(comp, "%>") == 0) return '}';
+  if (strcmp(comp, "%:") == 0) return '#';
+  if (strcmp(comp, "%:%:") == 0) return P_DHASH;
+
+  return YYUNDEF;
 }
 
 int yylex(void) {
@@ -244,7 +225,10 @@ int yylex(void) {
     ret = get_punct();
     break;
   case CONSTANT:
-    ret = NUM;
+    ret = CONST;
+    break;
+  case STRING:
+    ret = STR;
     break;
   case EOF:
     ret = YYEOF;
