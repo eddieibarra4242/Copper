@@ -23,3 +23,4 @@ build_tests: cu test_utils
 tests: build_tests
 	clear
 	bin/tests/scanner.test
+	bin/tests/parser.test
