@@ -5,6 +5,8 @@
 #include <string.h>
 %}
 
+%glr-parser
+
 %union {
   Token *tokenval;
 }
@@ -89,6 +91,113 @@
 %token P_DHASH "##"
 
 %%
+  /* Temporary start non-terminal */
+  start: constant_expression;
+
+  /* Expressions (following A.2.1) */
+  primary_expression: ID
+    | CONST
+    | STR;
+    | '(' expression ')'
+    | generic_selection;
+
+  generic_selection:
+    "_Generic" '(' assignment_expression ',' generic_assoc_list ')';
+
+  generic_assoc_list: generic_assocciation
+    | generic_assoc_list ',' generic_assocciation;
+
+  generic_assocciation: type_name ':' assignment_expression
+    | "default" ':' assignment_expression;
+
+  postfix_expression: primary_expression
+    | postfix_expression '[' expression ']'
+    | postfix_expression '(' argument_expression_list_opt ')'
+    | postfix_expression '.' ID
+    | postfix_expression "->" ID
+    | postfix_expression "++"
+    | postfix_expression "--"
+    | compound_literal;
+
+  argument_expression_list_opt: %empty | argument_expression_list;
+  argument_expression_list: assignment_expression
+    | argument_expression_list ',' assignment_expression;
+
+  compound_literal: '(' storage_class_specifiers_opt type_name ')' braced_initializer;
+
+  unary_expression: postfix_expression
+    | "++" unary_expression
+    | "--" unary_expression
+    | unary_op unary_expression
+    | "sizeof" unary_expression
+    | "sizeof" '(' type_name ')'
+    | "alignof" '(' type_name ')';
+
+  unary_op: '&'
+    | '*'
+    | '+'
+    | '-'
+    | '~'
+    | '!';
+
+  cast_expression: unary_expression
+    | '(' type_name ')' cast_expression;
+
+  multiplicative_expression: cast_expression
+    | multiplicative_expression '*' cast_expression
+    | multiplicative_expression '/' cast_expression
+    | multiplicative_expression '%' cast_expression;
+
+  additive_expression: multiplicative_expression
+    | additive_expression '+' multiplicative_expression
+    | additive_expression '-' multiplicative_expression;
+
+  shift_expression: additive_expression
+    | shift_expression "<<" additive_expression
+    | shift_expression ">>" additive_expression;
+
+  relational_expression: shift_expression
+    | relational_expression '<' shift_expression
+    | relational_expression '>' shift_expression
+    | relational_expression "<=" shift_expression
+    | relational_expression ">=" shift_expression;
+
+  equality_expression: relational_expression
+    | equality_expression "==" relational_expression
+    | equality_expression "!=" relational_expression;
+
+  and_expression: equality_expression
+    | and_expression '&' equality_expression;
+
+  xor_expression: and_expression
+    | xor_expression '^' and_expression;
+
+  or_expression: xor_expression
+    | or_expression '|' xor_expression;
+
+  logical_and_expression: or_expression
+    | logical_and_expression "&&" or_expression;
+
+  logical_or_expression: logical_and_expression
+    | logical_or_expression "||" logical_and_expression;
+
+  conditional_expression: logical_or_expression
+    | logical_or_expression '?' expression ':' conditional_expression;
+
+  assignment_expression: conditional_expression
+    | unary_expression assignment_op assignment_expression;
+
+  assignment_op: '=' | "*=" | "/=" | "%=" | "+=" | "-=" | "<<=" | ">>=" | "&=" | "^=" | "|=";
+
+  expression: assignment_expression
+    | expression ',' assignment_expression;
+
+  constant_expression: conditional_expression;
+
+  /* TODO: temporary definitions */
+  storage_class_specifiers_opt: %empty | "storage";
+  type_name: "char";
+  braced_initializer: "inline";
 %%
 
 Token *cur;
