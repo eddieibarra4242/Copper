@@ -284,3 +284,32 @@ void test_chars(void) {
 }
 
 // TODO: need more char tests.
+
+void test_punctuation(void) {
+  const char *input = "[ ] ( ) { } . -> ++ --\n"
+                      "& * + - ~ ! / % << >>\n"
+                      "< > <= >= == != ^ | && ||\n"
+                      "? : :: ; ... = *= /= %= +=\n"
+                      "-= <<= >>= &= ^= |= , # ## <:\n"
+                      ":> <% %> %: %:%:";
+  Token *tokens = scan(input);
+
+  size_t list_length = get_token_list_length(tokens);
+
+  // 55 punct + 1 EOF
+  TEST_ASSERT_EQUAL(55 + 1, list_length);
+
+  for (Token *cur = tokens; cur != NULL; cur = cur->next) {
+    if (cur->kind == EOF)
+      break;
+
+    TEST_ASSERT_EQUAL(PUNCT, cur->kind);
+  }
+}
+
+void test_percent_failure(void) {
+  const char *input = "%:%";
+  expect_error("Unexpected character '\xFF' at 1:4, expected: [:]");
+  scan(input);
+  TEST_FAIL_MESSAGE("No error detected!");
+}

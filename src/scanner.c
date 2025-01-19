@@ -9,10 +9,11 @@
 #define SCANNER_ERROR(expected_list)                                           \
   do {                                                                         \
     Coord pos = calc_coord(i);                                                 \
+    char found = file[i];                                                      \
     ERRORV("scanner",                                                          \
            "Unexpected character '%c' at %zu:%zu, expected: [" expected_list   \
            "]",                                                                \
-           file[i], pos.line_number, pos.column);                              \
+           found != 0 ? found : (char)(-1), pos.line_number, pos.column);      \
   } while (0)
 
 const char *keywords[] = {
@@ -736,6 +737,8 @@ Token *scan(const char *file) {
         i++;
         i = scan_inline_comment(file, i);
         continue;
+      } else if (file[i] == '=') {
+        i++;
       }
     } else if (file[i] == 'u') {
       kind = IDENTIFIER;
@@ -748,6 +751,8 @@ Token *scan(const char *file) {
       } else if (file[i] == '\'') {
         kind = CONSTANT;
         i = scan_c_char_seq(file, i);
+      } else {
+        i = scan_identifier(file, i);
       }
     } else if (file[i] == 'U' || file[i] == 'L') {
       kind = IDENTIFIER;
@@ -756,6 +761,8 @@ Token *scan(const char *file) {
       if (file[i] == '\'') {
         kind = CONSTANT;
         i = scan_c_char_seq(file, i);
+      } else {
+        i = scan_identifier(file, i);
       }
     } else if (is_nondigit(file[i])) {
       kind = IDENTIFIER;
@@ -763,12 +770,6 @@ Token *scan(const char *file) {
     } else if (is_digit(file[i])) {
       kind = CONSTANT;
       i = scan_number(file, i);
-    } else if (file[i] == '(' || file[i] == ')' || file[i] == '{' ||
-               file[i] == '}' || file[i] == '?' || file[i] == ':' ||
-               file[i] == '~' || file[i] == '*' || file[i] == '/' ||
-               file[i] == '!' || file[i] == '%' || file[i] == ';' ||
-               file[i] == '[' || file[i] == ']') {
-      i++;
     } else if (file[i] == '.') {
       i++;
 
@@ -776,51 +777,125 @@ Token *scan(const char *file) {
         kind = CONSTANT;
         i = scan_fractional_const(file, i - 1);
         i = scan_floating_suffix(file, i);
+      } else if (file[i] == '.') {
+        i++;
+
+        if (file[i] == '.') {
+          i++;
+        } else {
+          SCANNER_ERROR(".");
+        }
       }
     } else if (file[i] == '\'') {
       kind = CONSTANT;
       i = scan_c_char_seq(file, i);
-    } else if (file[i] == '+') {
+    } else if (file[i] == '[' || file[i] == ']' || file[i] == '(' ||
+               file[i] == ')' || file[i] == '{' || file[i] == '}' ||
+               file[i] == '~' || file[i] == '?' || file[i] == ';' ||
+               file[i] == ',') {
       i++;
-
-      if (file[i] == '+')
-        i++;
     } else if (file[i] == '-') {
       i++;
 
-      if (file[i] == '-')
+      if (file[i] == '>' || file[i] == '-' || file[i] == '=') {
         i++;
-      else if (file[i] == '>')
-        i++;
-    } else if (file[i] == '&') {
+      }
+    } else if (file[i] == '+') {
       i++;
 
-      if (file[i] == '&')
+      if (file[i] == '+' || file[i] == '=') {
         i++;
-    } else if (file[i] == '|') {
-      i++;
-
-      if (file[i] == '|')
-        i++;
+      }
     } else if (file[i] == '<') {
       i++;
 
-      if (file[i] == '<')
+      if (file[i] == '<') {
         i++;
-      else if (file[i] == '=')
+
+        if (file[i] == '=') {
+          i++;
+        }
+      } else if (file[i] == '=' || file[i] == ':' || file[i] == '%') {
         i++;
+      }
     } else if (file[i] == '>') {
       i++;
 
-      if (file[i] == '>')
+      if (file[i] == '>') {
         i++;
-      else if (file[i] == '=')
+
+        if (file[i] == '=') {
+          i++;
+        }
+      } else if (file[i] == '=') {
         i++;
+      }
     } else if (file[i] == '=') {
       i++;
 
-      if (file[i] == '=')
+      if (file[i] == '=') {
         i++;
+      }
+    } else if (file[i] == '!') {
+      i++;
+
+      if (file[i] == '=') {
+        i++;
+      }
+    } else if (file[i] == '&') {
+      i++;
+
+      if (file[i] == '=' || file[i] == '&') {
+        i++;
+      }
+    } else if (file[i] == '|') {
+      i++;
+
+      if (file[i] == '=' || file[i] == '|') {
+        i++;
+      }
+    } else if (file[i] == ':') {
+      i++;
+
+      if (file[i] == ':' || file[i] == '>') {
+        i++;
+      }
+    } else if (file[i] == '*') {
+      i++;
+
+      if (file[i] == '=') {
+        i++;
+      }
+    } else if (file[i] == '%') {
+      i++;
+
+      if (file[i] == '=' || file[i] == '>') {
+        i++;
+      } else if (file[i] == ':') {
+        i++;
+
+        if (file[i] == '%') {
+          i++;
+
+          if (file[i] == ':') {
+            i++;
+          } else {
+            SCANNER_ERROR(":");
+          }
+        }
+      }
+    } else if (file[i] == '^') {
+      i++;
+
+      if (file[i] == '=') {
+        i++;
+      }
+    } else if (file[i] == '#') {
+      i++;
+
+      if (file[i] == '#') {
+        i++;
+      }
     } else {
       size_t lineno = seen_newlines + 1;
       size_t column = start - last_newline;
