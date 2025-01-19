@@ -320,3 +320,31 @@ void test_percent_failure(void) {
   scan(input);
   TEST_FAIL_MESSAGE("No error detected!");
 }
+
+void test_strings(void) {
+  const char *input = "u8\"\\uabcdfdsafdsa\" u\"\\x12effdsafdsa\"\n"
+                      "L\"\\777fdsafdsa\" \"\\aasd\" \"f\" \"affds\"\n"
+                      "\"$as4523\" \"@12\"";
+  Token *tokens = scan(input);
+
+  size_t list_length = get_token_list_length(tokens);
+
+  // 8 chars + 1 EOF
+  TEST_ASSERT_EQUAL(8 + 1, list_length);
+
+  for (Token *cur = tokens; cur != NULL; cur = cur->next) {
+    if (cur->kind == EOF)
+      break;
+
+    TEST_ASSERT_EQUAL(STRING, cur->kind);
+  }
+}
+
+void test_string_newline_failure(void) {
+  const char *input = "\"\n\"";
+  expect_error("Unexpected character '.' at 1:2, expected: [\"]");
+  scan(input);
+  TEST_FAIL_MESSAGE("No error detected!");
+}
+
+// TODO: need more string tests.
