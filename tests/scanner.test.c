@@ -136,7 +136,7 @@ void test_constants(void) {
 
   size_t list_length = get_token_list_length(tokens);
 
-  // 3 predefined constants + 1 EOF
+  // 5 ints + 1 EOF
   TEST_ASSERT_EQUAL(5 + 1, list_length);
 
   for (Token *cur = tokens; cur != NULL; cur = cur->next) {
@@ -226,9 +226,41 @@ void test_hex_separator_end_failure(void) {
   const char *input = "0xa'";
 
   expect_error("Unexpected character ''' at 1:4, expected: [0-9, a-f, A-F]");
+  scan(input);
+  TEST_FAIL_MESSAGE("No error detected!");
+}
+
+void test_int_prefix(void) {
+  const char *input = "0 0l 0L 0ll 0LL 0wb 0WB\n"
+                      "0u 0ul 0uL 0ull 0uLL 0uwb 0uWB\n"
+                      "0U 0Ul 0UL 0Ull 0ULL 0Uwb 0UWB\n"
+                      "0u 0lu 0Lu 0llu 0LLu 0wbu 0WBu\n"
+                      "0U 0lU 0LU 0llU 0LLU 0wbU 0WBU\n";
   Token *tokens = scan(input);
 
   size_t list_length = get_token_list_length(tokens);
-  printf("%zu\n", list_length);
+
+  // 35 ints + 1 EOF
+  TEST_ASSERT_EQUAL(35 + 1, list_length);
+
+  for (Token *cur = tokens; cur != NULL; cur = cur->next) {
+    if (cur->kind == EOF)
+      break;
+
+    TEST_ASSERT_EQUAL(CONSTANT, cur->kind);
+  }
+}
+
+void test_wb_failure(void) {
+  const char *input = "0wB";
+  expect_error("Unexpected character 'B' at 1:3, expected: [b]");
+  scan(input);
+  TEST_FAIL_MESSAGE("No error detected!");
+}
+
+void test_ll_failure(void) {
+  const char *input = "0Ll";
+  expect_error("Unexpected character 'l' at 1:3, expected: [L]");
+  scan(input);
   TEST_FAIL_MESSAGE("No error detected!");
 }

@@ -3,8 +3,8 @@
 #include "log.h"
 
 #include <stdbool.h>
-#include <string.h>
 #include <stdio.h>
+#include <string.h>
 
 #define SCANNER_ERROR(expected_list)                                           \
   do {                                                                         \
@@ -185,6 +185,77 @@ size_t scan_universal_character(const char *file, size_t index) {
   return i;
 }
 
+size_t scan_int_prefix_rest(const char *file, size_t index) {
+  size_t i = index;
+
+  if (file[i] == 'w') {
+    i++;
+
+    if (file[i] == 'b') {
+      i++;
+    } else {
+      SCANNER_ERROR("b");
+    }
+  } else if (file[i] == 'W') {
+    i++;
+
+    if (file[i] == 'B') {
+      i++;
+    } else {
+      SCANNER_ERROR("B");
+    }
+  } else if(file[i] == 'l') {
+    i++;
+
+    if (file[i] == 'l') {
+      i++;
+    } else if (file[i] == 'L') {
+      SCANNER_ERROR("l");
+    }
+  } else if (file[i] == 'L') {
+    i++;
+
+    if (file[i] == 'L') {
+      i++;
+    } else if (file[i] == 'l') {
+      SCANNER_ERROR("L");
+    }
+  }
+
+  return i;
+}
+
+size_t scan_int_prefix_ufirst(const char *file, size_t index) {
+  size_t i = index;
+
+  if (file[index] == 'u' || file[index] == 'U') {
+    i++;
+  }
+
+  return scan_int_prefix_rest(file, i);
+}
+
+size_t scan_int_prefix_ulast(const char *file, size_t index) {
+  size_t i = scan_int_prefix_rest(file, index);
+
+  if (file[i] == 'u' || file[i] == 'U') {
+    i++;
+  }
+
+  return i;
+}
+
+size_t scan_int_prefix_opt(const char *file, size_t index) {
+  if (file[index] == 'u' || file[index] == 'U') {
+    return scan_int_prefix_ufirst(file, index);
+  } else if (file[index] == 'w' || file[index] == 'W' || file[index] == 'l' ||
+             file[index] == 'L') {
+    return scan_int_prefix_ulast(file, index);
+  }
+
+  return index;
+}
+
 size_t scan_binary_number(const char *file, size_t index) {
   size_t i = index;
 
@@ -221,7 +292,7 @@ size_t scan_binary_number(const char *file, size_t index) {
     SCANNER_ERROR("0, 1");
   }
 
-  return i;
+  return scan_int_prefix_opt(file, i);
 }
 
 size_t scan_octal_number(const char *file, size_t index) {
@@ -248,7 +319,7 @@ size_t scan_octal_number(const char *file, size_t index) {
     SCANNER_ERROR("0, 1");
   }
 
-  return i;
+  return scan_int_prefix_opt(file, i);
 }
 
 size_t scan_decimal_number(const char *file, size_t index) {
@@ -275,7 +346,7 @@ size_t scan_decimal_number(const char *file, size_t index) {
     SCANNER_ERROR("0, 1");
   }
 
-  return i;
+  return scan_int_prefix_opt(file, i);
 }
 
 size_t scan_hex_number(const char *file, size_t index) {
@@ -314,7 +385,7 @@ size_t scan_hex_number(const char *file, size_t index) {
     SCANNER_ERROR(HEX_DIGIT_SEQ);
   }
 
-  return i;
+  return scan_int_prefix_opt(file, i);
 }
 
 size_t scan_number(const char *file, size_t index) {
