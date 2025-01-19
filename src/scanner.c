@@ -4,6 +4,7 @@
 
 #include <stdbool.h>
 #include <string.h>
+#include <stdio.h>
 
 #define SCANNER_ERROR(expected_list)                                           \
   do {                                                                         \
@@ -15,17 +16,25 @@
   } while (0)
 
 const char *keywords[] = {
-    "alignas",      "alignof",  "auto",          "bool",        "break",
-    "case",         "char",     "const",         "constexpr",   "continue",
-    "default",      "do",       "double",        "else",        "enum",
-    "extern",       "false",    "float",         "for",         "goto",
-    "if",           "inline",   "int",           "long",        "nullptr",
-    "register",     "restrict", "return",        "short",       "signed",
-    "sizeof",       "static",   "static_assert", "struct",      "switch",
-    "thread_local", "true",     "typedef",       "typeof",      "typeof_unqual",
-    "union",        "unsigned", "void",          "volatile",    "while",
-    "_Atomic",      "_BitInt",  "_Complex",      "_Decimal128", "_Decimal32",
-    "_Decimal64",   "_Generic", "_Imaginary",    "_Noreturn",
+    "alignas",       "alignof",      "auto",          "bool",
+    "break",         "case",         "char",          "const",
+    "constexpr",     "continue",     "default",       "do",
+    "double",        "else",         "enum",          "extern",
+    "float",         "for",          "goto",          "if",
+    "inline",        "int",          "long",          "register",
+    "restrict",      "return",       "short",         "signed",
+    "sizeof",        "static",       "static_assert", "struct",
+    "switch",        "thread_local", "typedef",       "typeof",
+    "typeof_unqual", "union",        "unsigned",      "void",
+    "volatile",      "while",        "_Atomic",       "_BitInt",
+    "_Complex",      "_Decimal128",  "_Decimal32",    "_Decimal64",
+    "_Generic",      "_Imaginary",   "_Noreturn",
+};
+
+const char *predefined_constants[] = {
+    "false",
+    "nullptr",
+    "true",
 };
 
 size_t seen_newlines = 0;
@@ -50,8 +59,20 @@ bool is_nondigit(char character) {
          ('a' <= character && character <= 'z') || character == '_';
 }
 
+#define OCT_DIGIT_SEQ "0-7"
+bool is_octal_digit(char character) {
+  return ('0' <= character && character <= '7');
+}
+
+#define NON_ZERO_SEQ "1-9"
+bool is_nonzero_digit(char character) {
+  return ('1' <= character && character <= '9');
+}
+
+#define DEC_DIGIT_SEQ "0-9"
 bool is_digit(char character) { return ('0' <= character && character <= '9'); }
 
+#define HEX_DIGIT_SEQ "0-9, a-f, A-F"
 bool is_hex_digit(char character) {
   return ('0' <= character && character <= '9') ||
          ('a' <= character && character <= 'f') ||
@@ -63,10 +84,10 @@ bool is_whitespace(char character) {
          character == '\n' || character == '\v' || character == '\f';
 }
 
-bool is_keyword(const char *value) {
-  for (size_t i = 0; i < NELEMS(keywords); i++) {
-    size_t length = strlen(keywords[i]);
-    if (memcmp(value, keywords[i], length) == 0) {
+bool is_in_array(const char *value, const char *array[], size_t len) {
+  for (size_t i = 0; i < len; i++) {
+    size_t length = strlen(array[i]);
+    if (memcmp(value, array[i], length) == 0) {
       return true;
     }
   }
@@ -134,7 +155,7 @@ size_t scan_hex_quad(const char *file, size_t index) {
     if (is_hex_digit(file[i])) {
       i++;
     } else {
-      SCANNER_ERROR("0-9, a-f, A-F");
+      SCANNER_ERROR(HEX_DIGIT_SEQ);
     }
   }
 
@@ -164,19 +185,153 @@ size_t scan_universal_character(const char *file, size_t index) {
   return i;
 }
 
+size_t scan_binary_number(const char *file, size_t index) {
+  size_t i = index;
+
+  if (file[i] == '0') {
+    i++;
+  } else {
+    SCANNER_ERROR("0");
+  }
+
+  if (file[i] == 'b' || file[i] == 'B') {
+    i++;
+  } else {
+    SCANNER_ERROR("b, B");
+  }
+
+  if (file[i] == '0' || file[i] == '1') {
+    i++;
+  } else {
+    SCANNER_ERROR("0, 1");
+  }
+
+  while (is_hex_digit(file[i]) || file[i] == '\'') {
+    if (file[i] != '0' && file[i] != '1' && file[i] != '\'') {
+      SCANNER_ERROR("0, 1");
+    }
+
+    i++;
+  }
+
+  i--;
+  if (file[i] == '0' || file[i] == '1') {
+    i++;
+  } else {
+    SCANNER_ERROR("0, 1");
+  }
+
+  return i;
+}
+
+size_t scan_octal_number(const char *file, size_t index) {
+  size_t i = index;
+
+  if (file[i] == '0') {
+    i++;
+  } else {
+    SCANNER_ERROR("0");
+  }
+
+  while (is_hex_digit(file[i]) || file[i] == '\'') {
+    if (!is_octal_digit(file[i]) && file[i] != '\'') {
+      SCANNER_ERROR(OCT_DIGIT_SEQ);
+    }
+
+    i++;
+  }
+
+  i--;
+  if (is_octal_digit(file[i])) {
+    i++;
+  } else {
+    SCANNER_ERROR("0, 1");
+  }
+
+  return i;
+}
+
+size_t scan_decimal_number(const char *file, size_t index) {
+  size_t i = index;
+
+  if (is_nonzero_digit(file[i])) {
+    i++;
+  } else {
+    SCANNER_ERROR(NON_ZERO_SEQ);
+  }
+
+  while (is_hex_digit(file[i]) || file[i] == '\'') {
+    if (!is_digit(file[i]) && file[i] != '\'') {
+      SCANNER_ERROR(DEC_DIGIT_SEQ);
+    }
+
+    i++;
+  }
+
+  i--;
+  if (is_digit(file[i])) {
+    i++;
+  } else {
+    SCANNER_ERROR("0, 1");
+  }
+
+  return i;
+}
+
+size_t scan_hex_number(const char *file, size_t index) {
+  size_t i = index;
+
+  if (file[i] == '0') {
+    i++;
+  } else {
+    SCANNER_ERROR("0");
+  }
+
+  if (file[i] == 'x' || file[i] == 'X') {
+    i++;
+  } else {
+    SCANNER_ERROR("x, X");
+  }
+
+  if (is_hex_digit(file[i])) {
+    i++;
+  } else {
+    SCANNER_ERROR(HEX_DIGIT_SEQ);
+  }
+
+  while (is_digit(file[i]) || is_nondigit(file[i]) || file[i] == '\'') {
+    if (!is_hex_digit(file[i]) && file[i] != '\'') {
+      SCANNER_ERROR(HEX_DIGIT_SEQ);
+    }
+
+    i++;
+  }
+
+  i--;
+  if (is_hex_digit(file[i])) {
+    i++;
+  } else {
+    SCANNER_ERROR(HEX_DIGIT_SEQ);
+  }
+
+  return i;
+}
+
 size_t scan_number(const char *file, size_t index) {
   size_t i = index;
 
-  while (file[i] != '\0' && is_digit(file[i])) {
-    i++;
-  }
+  if (file[i] == '0') {
+    if (file[i + 1] == 'x' || file[i + 1] == 'X') {
+      return scan_hex_number(file, i);
+    } else if (file[i + 1] == 'b' || file[i + 1] == 'B') {
+      return scan_binary_number(file, i);
+    }
 
-  if (file[i] == '.') {
-    i++;
-  }
-
-  while (file[i] != '\0' && is_digit(file[i])) {
-    i++;
+    return scan_octal_number(file, i);
+  } else if (is_digit(file[i])) {
+    return scan_decimal_number(file, i);
+  } else {
+    SCANNER_ERROR(DEC_DIGIT_SEQ);
   }
 
   return i;
@@ -316,8 +471,13 @@ Token *scan(const char *file) {
 
     const char *value_begin = &file[start];
 
-    if (kind == IDENTIFIER && is_keyword(value_begin)) {
+    if (kind == IDENTIFIER &&
+        is_in_array(value_begin, keywords, NELEMS(keywords))) {
       kind = KEYWORD;
+    } else if (kind == IDENTIFIER &&
+               is_in_array(value_begin, predefined_constants,
+                           NELEMS(predefined_constants))) {
+      kind = CONSTANT;
     }
 
     Token *new_token =
