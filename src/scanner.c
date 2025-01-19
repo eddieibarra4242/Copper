@@ -10,6 +10,8 @@
   do {                                                                         \
     Coord pos = calc_coord(i);                                                 \
     char found = file[i];                                                      \
+    found = found == 0 ? '.' : found;                                          \
+    found = found == '\n' ? '.' : found;                                       \
     ERRORV("scanner",                                                          \
            "Unexpected character '%c' at %zu:%zu, expected: [" expected_list   \
            "]",                                                                \
@@ -655,12 +657,42 @@ size_t scan_c_char_seq(const char *file, size_t index) {
     SCANNER_ERROR("\'");
   }
 
+  if (file[i] == '\n') {
+    SCANNER_ERROR("a char");
+  }
+
   i = scan_char(file, i);
 
   if (file[i] == '\'') {
     i++;
   } else {
     SCANNER_ERROR("\'");
+  }
+
+  return i;
+}
+
+size_t scan_s_char_seq(const char *file, size_t index) {
+  size_t i = index;
+
+  if (file[i] == '"') {
+    i++;
+  } else {
+    SCANNER_ERROR("\"");
+  }
+
+  while (file[i] != '\"') {
+    if (file[i] == '\n') {
+      SCANNER_ERROR("\"");
+    }
+
+    i = scan_char(file, i);
+  }
+
+  if (file[i] == '"') {
+    i++;
+  } else {
+    SCANNER_ERROR("\"");
   }
 
   return i;
@@ -747,10 +779,19 @@ Token *scan(const char *file) {
       if (file[i] == '8') {
         kind = CONSTANT;
         i++;
-        i = scan_c_char_seq(file, i);
+
+        if (file[i] == '\'') {
+          i = scan_c_char_seq(file, i);
+        } else if (file[i] == '\"') {
+          kind = STRING;
+          i = scan_s_char_seq(file, i);
+        }
       } else if (file[i] == '\'') {
         kind = CONSTANT;
         i = scan_c_char_seq(file, i);
+      } else if (file[i] == '\"') {
+        kind = STRING;
+        i = scan_s_char_seq(file, i);
       } else {
         i = scan_identifier(file, i);
       }
@@ -761,6 +802,9 @@ Token *scan(const char *file) {
       if (file[i] == '\'') {
         kind = CONSTANT;
         i = scan_c_char_seq(file, i);
+      } else if (file[i] == '\"') {
+        kind = STRING;
+        i = scan_s_char_seq(file, i);
       } else {
         i = scan_identifier(file, i);
       }
@@ -789,6 +833,9 @@ Token *scan(const char *file) {
     } else if (file[i] == '\'') {
       kind = CONSTANT;
       i = scan_c_char_seq(file, i);
+    } else if (file[i] == '\"') {
+      kind = STRING;
+      i = scan_s_char_seq(file, i);
     } else if (file[i] == '[' || file[i] == ']' || file[i] == '(' ||
                file[i] == ')' || file[i] == '{' || file[i] == '}' ||
                file[i] == '~' || file[i] == '?' || file[i] == ';' ||

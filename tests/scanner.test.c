@@ -283,6 +283,13 @@ void test_chars(void) {
   }
 }
 
+void test_char_newline_failure(void) {
+  const char *input = "'\n'";
+  expect_error("Unexpected character '.' at 1:2, expected: [a char]");
+  scan(input);
+  TEST_FAIL_MESSAGE("No error detected!");
+}
+
 // TODO: need more char tests.
 
 void test_punctuation(void) {
@@ -309,7 +316,7 @@ void test_punctuation(void) {
 
 void test_percent_failure(void) {
   const char *input = "%:%";
-  expect_error("Unexpected character '\xFF' at 1:4, expected: [:]");
+  expect_error("Unexpected character '.' at 1:4, expected: [:]");
   scan(input);
   TEST_FAIL_MESSAGE("No error detected!");
 }
