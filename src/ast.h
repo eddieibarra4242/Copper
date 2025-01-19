@@ -10,7 +10,7 @@ enum stmts {
 
 enum exps {
   IDENTIFIER_EXPR,
-  CONSTANT,
+  CONSTANT_EXPR,
   POSTFIX,
   PREFIX,
   CAST,

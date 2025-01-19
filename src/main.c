@@ -51,8 +51,9 @@ int main(int args, char **argv) {
 
 #ifndef NDEBUG
   for (Token *cur = tokens; cur != NULL; cur = cur->next) {
-    DEBUG("token [%d, %s, %zu, %zu]", cur->kind, cur->data, cur->start,
-          cur->end);
+    DEBUG("token [%d, %s, %zu:%zu, %zu:%zu]", cur->kind, cur->data,
+          cur->span.start.line_number, cur->span.start.column,
+          cur->span.end.line_number, cur->span.end.column);
   }
 #endif
 

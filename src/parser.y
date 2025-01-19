@@ -220,7 +220,7 @@ int get_punct() {
     return P_LTE;
   }
 
-  if ((next->end - next->start) > 1)
+  if (next->length > 1)
     return YYUNDEF;
 
   return (int)comp[0];
@@ -243,7 +243,7 @@ int yylex(void) {
   case PUNCT:
     ret = get_punct();
     break;
-  case NUMBER:
+  case CONSTANT:
     ret = NUM;
     break;
   case EOF:
@@ -260,7 +260,7 @@ int yylex(void) {
 void yyerror(char const *s) {
   if (cur) {
     ERRORV("parser", "%s at token \"%s\" (line %zu:%zu)", s, cur->data,
-           cur->line_number, cur->column);
+           cur->span.start.line_number, cur->span.start.column);
   } else {
     ERROR("parser", s);
   }

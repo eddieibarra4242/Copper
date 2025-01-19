@@ -206,7 +206,7 @@ struct expression *create_postfix_exp_attr(enum postfix_exps type, Token *attr,
 struct expression *create_constant_exp(Token *token) {
   struct expression *result = allocate_or_error(sizeof(struct expression));
 
-  result->type = CONSTANT;
+  result->type = CONSTANT_EXPR;
   result->exp._constant.token = token;
 
   return result;
@@ -293,7 +293,7 @@ void destroy_expression(struct expression *exp) {
   case IDENTIFIER_EXPR:
     destroy_id_exp(exp);
     break;
-  case CONSTANT:
+  case CONSTANT_EXPR:
     destroy_constant_exp(exp);
     break;
   case POSTFIX:
