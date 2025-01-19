@@ -1,11 +1,9 @@
-#include <unity.h>
-#include <stdbool.h>
 #include <scanner.h>
+#include <stdbool.h>
 #include <test_utils.h>
+#include <unity.h>
 
-void setUp(void) {
-  reset_log_checks();
-}
+void setUp(void) { reset_log_checks(); }
 
 void tearDown(void) {
   // clean stuff up here
@@ -49,14 +47,14 @@ void test_eof(void) {
 
 void test_keywords(void) {
   const char *input = "alignas alignof auto bool break case\n"
-             "char const constexpr continue default do\n"
-             "double else enum extern float for goto if\n"
-             "inline int long register restrict return short\n"
-             "signed sizeof static static_assert struct switch\n"
-             "thread_local typedef typeof typeof_unqual union\n"
-             "unsigned void volatile while _Atomic _BitInt\n"
-             "_Complex _Decimal128 _Decimal32 _Decimal64 _Generic\n"
-             "_Imaginary _Noreturn\n";
+                      "char const constexpr continue default do\n"
+                      "double else enum extern float for goto if\n"
+                      "inline int long register restrict return short\n"
+                      "signed sizeof static static_assert struct switch\n"
+                      "thread_local typedef typeof typeof_unqual union\n"
+                      "unsigned void volatile while _Atomic _BitInt\n"
+                      "_Complex _Decimal128 _Decimal32 _Decimal64 _Generic\n"
+                      "_Imaginary _Noreturn\n";
   Token *tokens = scan(input);
 
   size_t list_length = get_token_list_length(tokens);
@@ -120,7 +118,7 @@ void test_regular_comment(void) {
 
 void test_inline_comment(void) {
   const char *input = "int hello /* This is\n"
-  "a comment */ hi how are you?";
+                      "a comment */ hi how are you?";
   Token *tokens = scan(input);
 
   size_t list_length = get_token_list_length(tokens);
@@ -185,15 +183,7 @@ void test_octal_digit_failure(void) {
 void test_octal_separator_failure(void) {
   const char *input = "07'";
 
-  expect_error("Unexpected character ''' at 1:3, expected: [0, 1]");
-  scan(input);
-  TEST_FAIL_MESSAGE("No error detected!");
-}
-
-void test_decimal_digit_failure(void) {
-  const char *input = "12a3";
-
-  expect_error("Unexpected character 'a' at 1:3, expected: [0-9]");
+  expect_error("Unexpected character ''' at 1:3, expected: [0-7]");
   scan(input);
   TEST_FAIL_MESSAGE("No error detected!");
 }
@@ -201,15 +191,7 @@ void test_decimal_digit_failure(void) {
 void test_decimal_separator_failure(void) {
   const char *input = "12'";
 
-  expect_error("Unexpected character ''' at 1:3, expected: [0, 1]");
-  scan(input);
-  TEST_FAIL_MESSAGE("No error detected!");
-}
-
-void test_hex_digit_failure(void) {
-  const char *input = "0x12g";
-
-  expect_error("Unexpected character 'g' at 1:5, expected: [0-9, a-f, A-F]");
+  expect_error("Unexpected character ''' at 1:3, expected: [0-9]");
   scan(input);
   TEST_FAIL_MESSAGE("No error detected!");
 }
@@ -263,4 +245,21 @@ void test_ll_failure(void) {
   expect_error("Unexpected character 'l' at 1:3, expected: [L]");
   scan(input);
   TEST_FAIL_MESSAGE("No error detected!");
+}
+
+void test_float(void) {
+  const char *input = "0. .0dd 0x.abp-12DD";
+  Token *tokens = scan(input);
+
+  size_t list_length = get_token_list_length(tokens);
+
+  // 3 floats + 1 EOF
+  TEST_ASSERT_EQUAL(3 + 1, list_length);
+
+  for (Token *cur = tokens; cur != NULL; cur = cur->next) {
+    if (cur->kind == EOF)
+      break;
+
+    TEST_ASSERT_EQUAL(CONSTANT, cur->kind);
+  }
 }

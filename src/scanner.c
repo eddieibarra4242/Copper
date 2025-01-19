@@ -185,6 +185,159 @@ size_t scan_universal_character(const char *file, size_t index) {
   return i;
 }
 
+size_t scan_sign(const char *file, size_t index) {
+  if (file[index] == '+') {
+    return index + 1;
+  } else if (file[index] == '-') {
+    return index + 1;
+  }
+
+  return index;
+}
+
+size_t scan_floating_suffix(const char *file, size_t index) {
+  static const char *suffixes[] = {
+      "f", "l", "F", "L", "df", "dd", "dl", "DF", "DD", "DL",
+  };
+
+  for (size_t i = 0; i < NELEMS(suffixes); i++) {
+    size_t length = strlen(suffixes[i]);
+    if (memcmp(&file[index], suffixes[i], length) == 0) {
+      return index + length;
+    }
+  }
+
+  return index;
+}
+
+size_t scan_digit_seq(const char *file, size_t index) {
+  size_t i = index;
+
+  if (is_digit(file[i])) {
+    i++;
+  } else {
+    SCANNER_ERROR(DEC_DIGIT_SEQ);
+  }
+
+  while (is_digit(file[i]) || file[i] == '\'') {
+    i++;
+  }
+
+  i--;
+  if (is_digit(file[i])) {
+    i++;
+  } else {
+    SCANNER_ERROR(DEC_DIGIT_SEQ);
+  }
+
+  return i;
+}
+
+size_t scan_hex_digit_seq(const char *file, size_t index) {
+  size_t i = index;
+
+  if (is_hex_digit(file[i])) {
+    i++;
+  } else {
+    SCANNER_ERROR(HEX_DIGIT_SEQ);
+  }
+
+  while (is_hex_digit(file[i]) || file[i] == '\'') {
+    i++;
+  }
+
+  i--;
+  if (is_hex_digit(file[i])) {
+    i++;
+  } else {
+    SCANNER_ERROR(HEX_DIGIT_SEQ);
+  }
+
+  return i;
+}
+
+size_t scan_binary_exp(const char *file, size_t index) {
+  size_t i = index;
+
+  if (file[i] == 'p' || file[i] == 'P') {
+    i++;
+  }
+
+  i = scan_sign(file, i);
+
+  return scan_digit_seq(file, i);
+}
+
+size_t scan_exp(const char *file, size_t index) {
+  size_t i = index;
+
+  if (file[i] == 'e' || file[i] == 'E') {
+    i++;
+  } else {
+    SCANNER_ERROR("e, E");
+  }
+
+  i = scan_sign(file, i);
+
+  return scan_digit_seq(file, i);
+}
+
+size_t scan_fractional_const(const char *file, size_t index) {
+  size_t i = index;
+
+  if (file[i] == '.') {
+    i++;
+  } else {
+    SCANNER_ERROR(".");
+  }
+
+  return scan_digit_seq(file, i);
+}
+
+size_t scan_period(const char *file, size_t index) {
+  size_t i = index;
+
+  if (file[i] == '.') {
+    i++;
+  } else {
+    SCANNER_ERROR(".");
+  }
+
+  if (is_digit(file[i])) {
+    return scan_fractional_const(file, index);
+  }
+
+  return i;
+}
+
+size_t scan_hex_fractional_const(const char *file, size_t index) {
+  size_t i = index;
+
+  if (file[i] == '.') {
+    i++;
+  } else {
+    SCANNER_ERROR(".");
+  }
+
+  return scan_hex_digit_seq(file, i);
+}
+
+size_t scan_hex_fractional_const_opt(const char *file, size_t index) {
+  size_t i = index;
+
+  if (file[i] == '.') {
+    i++;
+  } else {
+    SCANNER_ERROR(".");
+  }
+
+  if (is_hex_digit(file[i])) {
+    return scan_fractional_const(file, index);
+  }
+
+  return i;
+}
+
 size_t scan_int_prefix_rest(const char *file, size_t index) {
   size_t i = index;
 
@@ -204,7 +357,7 @@ size_t scan_int_prefix_rest(const char *file, size_t index) {
     } else {
       SCANNER_ERROR("B");
     }
-  } else if(file[i] == 'l') {
+  } else if (file[i] == 'l') {
     i++;
 
     if (file[i] == 'l') {
@@ -304,6 +457,16 @@ size_t scan_octal_number(const char *file, size_t index) {
     SCANNER_ERROR("0");
   }
 
+  if (file[i] == '.') {
+    i = scan_period(file, i);
+
+    if (file[i] == 'e' || file[i] == 'E') {
+      i = scan_exp(file, i);
+    }
+
+    return scan_floating_suffix(file, i);
+  }
+
   while (is_hex_digit(file[i]) || file[i] == '\'') {
     if (!is_octal_digit(file[i]) && file[i] != '\'') {
       SCANNER_ERROR(OCT_DIGIT_SEQ);
@@ -316,7 +479,7 @@ size_t scan_octal_number(const char *file, size_t index) {
   if (is_octal_digit(file[i])) {
     i++;
   } else {
-    SCANNER_ERROR("0, 1");
+    SCANNER_ERROR(OCT_DIGIT_SEQ);
   }
 
   return scan_int_prefix_opt(file, i);
@@ -326,24 +489,19 @@ size_t scan_decimal_number(const char *file, size_t index) {
   size_t i = index;
 
   if (is_nonzero_digit(file[i])) {
-    i++;
+    i = scan_digit_seq(file, i);
+
+    if (file[i] == '.') {
+      i = scan_period(file, i);
+
+      if (file[i] == 'e' || file[i] == 'E') {
+        i = scan_exp(file, i);
+      }
+
+      i = scan_floating_suffix(file, i);
+    }
   } else {
     SCANNER_ERROR(NON_ZERO_SEQ);
-  }
-
-  while (is_hex_digit(file[i]) || file[i] == '\'') {
-    if (!is_digit(file[i]) && file[i] != '\'') {
-      SCANNER_ERROR(DEC_DIGIT_SEQ);
-    }
-
-    i++;
-  }
-
-  i--;
-  if (is_digit(file[i])) {
-    i++;
-  } else {
-    SCANNER_ERROR("0, 1");
   }
 
   return scan_int_prefix_opt(file, i);
@@ -365,22 +523,17 @@ size_t scan_hex_number(const char *file, size_t index) {
   }
 
   if (is_hex_digit(file[i])) {
-    i++;
-  } else {
-    SCANNER_ERROR(HEX_DIGIT_SEQ);
-  }
+    i = scan_hex_digit_seq(file, i);
 
-  while (is_digit(file[i]) || is_nondigit(file[i]) || file[i] == '\'') {
-    if (!is_hex_digit(file[i]) && file[i] != '\'') {
-      SCANNER_ERROR(HEX_DIGIT_SEQ);
+    if (file[i] == '.') {
+      i = scan_hex_fractional_const_opt(file, i);
+      i = scan_binary_exp(file, i);
+      i = scan_floating_suffix(file, i);
     }
-
-    i++;
-  }
-
-  i--;
-  if (is_hex_digit(file[i])) {
-    i++;
+  } else if (file[i] == '.') {
+    i = scan_hex_fractional_const(file, i);
+    i = scan_binary_exp(file, i);
+    i = scan_floating_suffix(file, i);
   } else {
     SCANNER_ERROR(HEX_DIGIT_SEQ);
   }
@@ -490,8 +643,16 @@ Token *scan(const char *file) {
                file[i] == '}' || file[i] == '?' || file[i] == ':' ||
                file[i] == '~' || file[i] == '*' || file[i] == '/' ||
                file[i] == '!' || file[i] == '%' || file[i] == ';' ||
-               file[i] == '[' || file[i] == ']' || file[i] == '.') {
+               file[i] == '[' || file[i] == ']') {
       i++;
+    } else if (file[i] == '.') {
+      i++;
+
+      if (is_digit(file[i])) {
+        kind = CONSTANT;
+        i = scan_fractional_const(file, i - 1);
+        i = scan_floating_suffix(file, i);
+      }
     } else if (file[i] == '+') {
       i++;
 
