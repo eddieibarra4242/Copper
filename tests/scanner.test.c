@@ -283,4 +283,4 @@ void test_chars(void) {
   }
 }
 
-// TODO: need more float tests.
+// TODO: need more char tests.
