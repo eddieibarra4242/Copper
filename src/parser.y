@@ -91,13 +91,21 @@
 %token P_DHASH "##"
 
 %%
-  /* Temporary start non-terminal */
-  start: constant_expression;
+  /* External definitions (following A.3.4) */
+  translation_unit: external_declaration
+    | translation_unit external_declaration;
+
+  external_declaration: function_definition
+    | declaration;
+
+  function_definition: attribute_specifier_sequence_opt declaration_specifiers declarator function_body;
+
+  function_body: compound_statement;
 
   /* Expressions (following A.2.1) */
   primary_expression: ID
     | CONST
-    | STR;
+    | STR
     | '(' expression ')'
     | generic_selection;
 
@@ -119,11 +127,13 @@
     | postfix_expression "--"
     | compound_literal;
 
-  argument_expression_list_opt: %empty | argument_expression_list;
   argument_expression_list: assignment_expression
     | argument_expression_list ',' assignment_expression;
 
   compound_literal: '(' storage_class_specifiers_opt type_name ')' braced_initializer;
+
+  storage_class_specifiers: storage_class_specifier
+    | storage_class_specifiers storage_class_specifier;
 
   unary_expression: postfix_expression
     | "++" unary_expression
@@ -194,10 +204,282 @@
 
   constant_expression: conditional_expression;
 
-  /* TODO: temporary definitions */
-  storage_class_specifiers_opt: %empty | "storage";
-  type_name: "char";
-  braced_initializer: "inline";
+  /* Declarations (following A.2.2) */
+  declaration: declaration_specifiers init_declarator_list_opt ';'
+    |  attribute_specifier_sequence declaration_specifiers init_declarator_list ';'
+    |  static_assert_declaration
+    |  attribute_declaration;
+
+  declaration_specifiers: declaration_specifier attribute_specifier_sequence_opt
+    | declaration_specifier declaration_specifiers;
+
+  declaration_specifier: storage_class_specifier
+    | type_specifier_qualifier
+    | function_specifier;
+
+  init_declarator_list: init_declarator
+    | init_declarator_list ',' init_declarator;
+
+  init_declarator: declarator
+    | declarator '=' initializer;
+
+  attribute_declaration: attribute_specifier_sequence ';';
+
+  storage_class_specifier: "auto"
+    | "constexpr"
+    | "extern"
+    | "register"
+    | "static"
+    | "thread_local"
+    | "typedef";
+
+  type_specifier: "void"
+    | "bool"
+    | "char"
+    | "short"
+    | "int"
+    | "long"
+    | "float"
+    | "double"
+    | "signed"
+    | "unsigned"
+    | "_BitInt" '(' constant_expression ')'
+    | "_Complex"
+    | "_Decimal32"
+    | "_Decimal64"
+    | "_Decimal128"
+    | atomic_type_specifier
+    | struct_or_union_specifier
+    | enum_specifier
+    | typedef_name
+    | typeof_specifier;
+
+  struct_or_union_specifier:
+  struct_or_union attribute_specifier_sequence_opt identifier_opt '{' member_declaration_list '}'
+    | struct_or_union attribute_specifier_sequence_opt ID;
+
+  struct_or_union: "struct"
+    | "union";
+
+  member_declaration_list: member_declaration
+    | member_declaration_list member_declaration;
+
+  member_declaration: attribute_specifier_sequence_opt specifier_qualifier_list member_declarator_list_opt ';'
+    | static_assert_declaration;
+
+  specifier_qualifier_list: type_specifier_qualifier attribute_specifier_sequence_opt
+    | type_specifier_qualifier specifier_qualifier_list;
+
+  type_specifier_qualifier: type_specifier
+    | type_qualifier
+    | alignment_specifier;
+
+  member_declarator_list: member_declarator
+    | member_declarator_list ',' member_declarator;
+
+  member_declarator: declarator
+    | declarator_opt ':' constant_expression;
+
+  enum_specifier: "enum" attribute_specifier_sequence_opt identifier_opt enum_type_specifier_opt '{' enumerator_list comma_opt '}'
+    | "enum" ID enum_type_specifier_opt;
+
+  enumerator_list: enumerator
+    | enumerator_list ',' enumerator;
+
+  enumerator: enumeration_constant attribute_specifier_sequence_opt
+    | enumeration_constant attribute_specifier_sequence_opt '=' constant_expression;
+
+  enum_type_specifier: ':' specifier_qualifier_list;
+
+  atomic_type_specifier: "_Atomic" '(' type_name ')';
+
+  typeof_specifier: "typeof" '(' typeof_specifier_argument ')'
+    | "typeof_unqual" '(' typeof_specifier_argument ')';
+
+  typeof_specifier_argument: expression
+    | type_name;
+
+  type_qualifier: "const"
+    | "restrict"
+    | "volatile"
+    | "_Atomic";
+
+  function_specifier: "inline"
+    | "_Noreturn";
+
+  alignment_specifier: "alignas" '(' type_name ')'
+    | "alignas" '(' constant_expression ')';
+
+  declarator: pointer_opt direct_declarator;
+
+  direct_declarator: ID attribute_specifier_sequence_opt
+    | '(' declarator ')'
+    | array_declarator attribute_specifier_sequence_opt
+    | function_declarator attribute_specifier_sequence_opt;
+
+  array_declarator: direct_declarator '[' type_qualifier_list_opt assignment_expression_opt ']'
+    | direct_declarator '[' "static" type_qualifier_list_opt assignment_expression ']'
+    | direct_declarator '[' type_qualifier_list "static" assignment_expression ']'
+    | direct_declarator '[' type_qualifier_list_opt '*' ']';
+
+  function_declarator: direct_declarator '(' parameter_type_list_opt ')';
+
+  pointer: '*' attribute_specifier_sequence_opt type_qualifier_list_opt pointer_opt;
+
+  type_qualifier_list: type_qualifier
+    | type_qualifier_list type_qualifier;
+
+  parameter_type_list: parameter_list
+    | parameter_list ',' "..."
+    | "...";
+
+  parameter_list: parameter_declaration
+    | parameter_list ',' parameter_declaration;
+
+  parameter_declaration: attribute_specifier_sequence_opt declaration_specifiers declarator %dprec 2
+    | attribute_specifier_sequence_opt declaration_specifiers abstract_declarator_opt %dprec 1;
+
+  type_name: specifier_qualifier_list abstract_declarator_opt;
+
+  abstract_declarator: pointer
+    | pointer_opt direct_abstract_declarator;
+
+  direct_abstract_declarator: '(' abstract_declarator ')'
+    | array_abstract_declarator attribute_specifier_sequence_opt
+    | function_abstract_declarator attribute_specifier_sequence_opt;
+
+  array_abstract_declarator: direct_abstract_declarator_opt '[' type_qualifier_list_opt assignment_expression_opt ']'
+    | direct_abstract_declarator_opt '[' "static" type_qualifier_list_opt assignment_expression ']'
+    | direct_abstract_declarator_opt '[' type_qualifier_list "static" assignment_expression ']'
+    | direct_abstract_declarator_opt '[' '*' ']';
+
+  function_abstract_declarator: direct_abstract_declarator_opt '(' parameter_type_list_opt ')';
+
+  typedef_name: ID;
+
+  initializer_list_with_comma_opt: %empty | initializer_list comma_opt;
+  braced_initializer: '{' initializer_list_with_comma_opt '}';
+
+  initializer: assignment_expression | braced_initializer;
+
+  initializer_list_member: designation_opt initializer;
+  initializer_list: initializer_list_member
+    | initializer_list ',' initializer_list_member;
+
+  designation: designator_list '=';
+
+  designator_list: designator
+    | designator_list designator;
+
+  designator: '[' constant_expression ']'
+    | '.' ID;
+
+  static_assert_message: ',' STR;
+  static_assert_message_opt: %empty | static_assert_message;
+  static_assert_declaration: "static_assert" '(' constant_expression static_assert_message_opt ')' ';';
+
+  attribute_specifier_sequence: attribute_specifier
+    | attribute_specifier_sequence attribute_specifier;
+
+  attribute_specifier: '[' '[' attribute_list ']' ']';
+
+  attribute_list: attribute_opt
+    | attribute_list ',' attribute_opt;
+
+  attribute: attribute_token attribute_argument_clause_opt;
+
+  attribute_token: standard_attribute
+    | attribute_prefixed_token;
+
+  standard_attribute: ID;
+
+  attribute_prefixed_token: attribute_prefix "::" ID;
+
+  attribute_prefix: ID;
+
+  attribute_argument_clause: '(' balanced_token_sequence_opt ')';
+
+  balanced_token_sequence: balanced_token
+    | balanced_token_sequence balanced_token;
+
+  balanced_token: '(' balanced_token_sequence_opt ')'
+    | '[' balanced_token_sequence_opt ']'
+    | '{' balanced_token_sequence_opt '}';
+  // TODO: any token other than a parenthesis, a bracket, or a brace
+
+  /* Statements (following A.3.3) */
+  statement: labeled_statement
+    | unlabeled_statement;
+
+  unlabeled_statement: expression_statement
+    | attribute_specifier_sequence_opt primary_block
+    | attribute_specifier_sequence_opt jump_statement;
+
+  primary_block: compound_statement
+    | selection_statement
+    | iteration_statement;
+
+  secondary_block: statement;
+
+  label: attribute_specifier_sequence_opt ID ':'
+    | attribute_specifier_sequence_opt "case" constant_expression ':'
+    | attribute_specifier_sequence_opt "default" ':';
+
+  labeled_statement: label statement;
+
+  compound_statement: '{' block_item_list_opt '}';
+
+  block_item_list: block_item
+    | block_item_list block_item;
+
+  block_item: declaration
+    | unlabeled_statement
+    | label;
+
+  expression_statement: expression_opt ';'
+    | attribute_specifier_sequence expression ';';
+
+  selection_statement: "if" '(' expression ')' secondary_block
+    | "if" '(' expression ')' secondary_block "else" secondary_block
+    | "switch" '(' expression ')' secondary_block;
+
+  iteration_statement: "while" '(' expression ')' secondary_block
+    | "do" secondary_block "while" '(' expression ')' ';'
+    | "for" '(' expression_opt ';' expression_opt ';' expression_opt ')' secondary_block
+    | "for" '(' declaration expression_opt ';' expression_opt ')' secondary_block;
+
+  jump_statement: "goto" ID ';'
+    | "continue" ';'
+    | "break" ';'
+    | "return" expression_opt ';';
+
+  /* The following non-terminal definitions do not appear in spec. */
+  identifier_opt: %empty | ID;
+  balanced_token_sequence_opt: %empty | balanced_token_sequence;
+  attribute_argument_clause_opt: %empty | attribute_argument_clause;
+  attribute_opt: %empty | attribute;
+  designation_opt: %empty | designation;
+  direct_abstract_declarator_opt: %empty | direct_abstract_declarator;
+  abstract_declarator_opt: %empty | abstract_declarator;
+  parameter_type_list_opt: %empty | parameter_type_list;
+  assignment_expression_opt: %empty | assignment_expression;
+  type_qualifier_list_opt: %empty | type_qualifier_list;
+  pointer_opt: %empty | pointer;
+  declarator_opt: %empty | declarator;
+  member_declarator_list_opt: %empty | member_declarator_list;
+  enum_type_specifier_opt: %empty | enum_type_specifier;
+  argument_expression_list_opt: %empty | argument_expression_list;
+  storage_class_specifiers_opt: storage_class_specifiers;
+  init_declarator_list_opt: %empty | init_declarator_list;
+  attribute_specifier_sequence_opt: %empty | attribute_specifier_sequence;
+  expression_opt: %empty | expression;
+  block_item_list_opt: %empty | block_item_list;
+
+  // For trailing comma support
+  comma_opt: %empty | ',';
+
+  // The scanner does not differentiate between ID and enumeration constants.
+  enumeration_constant: ID;
 %%
 
 Token *cur;

@@ -31,4 +31,4 @@ mkdirs:
 	mkdir -p ../bin/int
 
 parser.c: parser.y
-	$(BISON) --output parser.c parser.y
+	$(BISON) --color=yes --output parser.c parser.y
