@@ -6,6 +6,8 @@
 %}
 
 %glr-parser
+%expect 213
+%expect-rr 6
 
 %union {
   Token *tokenval;
@@ -205,7 +207,8 @@
   constant_expression: conditional_expression;
 
   /* Declarations (following A.2.2) */
-  declaration: declaration_specifiers init_declarator_list_opt ';'
+  declaration: declaration_specifiers ';' %dprec 2
+    |  declaration_specifiers init_declarator_list ';' %dprec 1
     |  attribute_specifier_sequence declaration_specifiers init_declarator_list ';'
     |  static_assert_declaration
     |  attribute_declaration;
@@ -264,7 +267,8 @@
   member_declaration_list: member_declaration
     | member_declaration_list member_declaration;
 
-  member_declaration: attribute_specifier_sequence_opt specifier_qualifier_list member_declarator_list_opt ';'
+  member_declaration: attribute_specifier_sequence_opt specifier_qualifier_list ';' %dprec 1
+    | attribute_specifier_sequence_opt specifier_qualifier_list member_declarator_list ';' %dprec 2
     | static_assert_declaration;
 
   specifier_qualifier_list: type_specifier_qualifier attribute_specifier_sequence_opt
@@ -357,8 +361,9 @@
 
   typedef_name: ID;
 
-  initializer_list_with_comma_opt: %empty | initializer_list comma_opt;
-  braced_initializer: '{' initializer_list_with_comma_opt '}';
+  braced_initializer: '{' '}'
+    | '{' initializer_list '}'
+    | '{' initializer_list ',' '}';
 
   initializer: assignment_expression | braced_initializer;
 
@@ -439,8 +444,8 @@
   expression_statement: expression_opt ';'
     | attribute_specifier_sequence expression ';';
 
-  selection_statement: "if" '(' expression ')' secondary_block
-    | "if" '(' expression ')' secondary_block "else" secondary_block
+  selection_statement: "if" '(' expression ')' secondary_block %dprec 1
+    | "if" '(' expression ')' secondary_block "else" secondary_block %dprec 2
     | "switch" '(' expression ')' secondary_block;
 
   iteration_statement: "while" '(' expression ')' secondary_block
@@ -466,11 +471,9 @@
   type_qualifier_list_opt: %empty | type_qualifier_list;
   pointer_opt: %empty | pointer;
   declarator_opt: %empty | declarator;
-  member_declarator_list_opt: %empty | member_declarator_list;
   enum_type_specifier_opt: %empty | enum_type_specifier;
   argument_expression_list_opt: %empty | argument_expression_list;
-  storage_class_specifiers_opt: storage_class_specifiers;
-  init_declarator_list_opt: %empty | init_declarator_list;
+  storage_class_specifiers_opt: %empty | storage_class_specifiers;
   attribute_specifier_sequence_opt: %empty | attribute_specifier_sequence;
   expression_opt: %empty | expression;
   block_item_list_opt: %empty | block_item_list;
@@ -632,9 +635,21 @@ int yylex(void) {
   return ret;
 }
 
+const char *get_token_kind(void) {
+  switch (cur->kind) {
+  case IDENTIFIER: return "identifier";
+  case KEYWORD: return "keyword";
+  case PUNCT: return "symbol";
+  case CONSTANT: return "constant";
+  case STRING: return "string literal";
+  default:
+  case EOF: return "End of file";
+  }
+}
+
 void yyerror(char const *s) {
   if (cur) {
-    ERRORV("parser", "%s at token \"%s\" (line %zu:%zu)", s, cur->data,
+    ERRORV("parser", "%s at %s \"%s\" (line %zu:%zu)", s, get_token_kind(), cur->data,
            cur->span.start.line_number, cur->span.start.column);
   } else {
     ERROR("parser", s);
