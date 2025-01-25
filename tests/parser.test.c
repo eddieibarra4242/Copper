@@ -7,7 +7,7 @@ void setUp(void) { reset_log_checks(); }
 void tearDown(void) { }
 
 void test_simple_program(void) {
-  const char* input = "main(){}";
+  const char* input = "int main(){}";
   Token *tokens = scan(input);
 
   init_parser(tokens);
