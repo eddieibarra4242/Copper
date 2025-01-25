@@ -87,10 +87,13 @@ bool is_whitespace(char character) {
          character == '\n' || character == '\v' || character == '\f';
 }
 
-bool is_in_array(const char *value, const char *array[], size_t len) {
+bool is_in_array(const char *value, size_t value_length, const char *array[], size_t len) {
   for (size_t i = 0; i < len; i++) {
-    size_t length = strlen(array[i]);
-    if (memcmp(value, array[i], length) == 0) {
+    size_t constant_len = strlen(array[i]);
+
+    if (value_length != constant_len) continue;
+
+    if (strncmp(value, array[i], value_length) == 0) {
       return true;
     }
   }
@@ -951,12 +954,13 @@ Token *scan(const char *file) {
     }
 
     const char *value_begin = &file[start];
+    size_t value_length = i - start;
 
     if (kind == IDENTIFIER &&
-        is_in_array(value_begin, keywords, NELEMS(keywords))) {
+        is_in_array(value_begin, value_length, keywords, NELEMS(keywords))) {
       kind = KEYWORD;
     } else if (kind == IDENTIFIER &&
-               is_in_array(value_begin, predefined_constants,
+               is_in_array(value_begin, value_length, predefined_constants,
                            NELEMS(predefined_constants))) {
       kind = CONSTANT;
     }

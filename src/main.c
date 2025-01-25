@@ -65,7 +65,7 @@ int main(int args, char **argv) {
   }
 
 #ifndef NDEBUG
-  print_ast();
+  //print_ast();
 #endif
 
   destroy_tree();
