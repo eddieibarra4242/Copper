@@ -1,6 +1,6 @@
-typedef int x;
+typedef long long_t;
 
-// x can refer to the type x above, but it must be parsed as a direct declarator.
-int main(int x) {
-  return 1;
-}
+long first(long long_t);
+long second(long_t long_t);
+long third(long long_t long_t);
+long fourth(long long long_t);
