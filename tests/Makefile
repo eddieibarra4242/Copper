@@ -18,6 +18,9 @@ all: mkdirs $(TESTS)
 		../bin/int/parser.test.o \
 		../bin/int/parser.runner.o \
 		-o ../bin/tests/parser.test $(LINK_FLAGS)
+	$(CC) \
+		run_all_inputs.c \
+		-o ../bin/tests/run_all_inputs.test
 
 %.test.o: %.test.c
 	ruby ../Unity/auto/generate_test_runner.rb $< $(<:%.test.c=%.runner.c)
