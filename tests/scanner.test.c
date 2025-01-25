@@ -348,3 +348,12 @@ void test_string_newline_failure(void) {
 }
 
 // TODO: need more string tests.
+
+void test_regression_long_t(void) {
+  const char *input = "long_t";
+  Token *tokens = scan(input);
+
+  // Old scanner implementation tokenized `long_t` as a keyword.
+  TEST_ASSERT_NOT_EQUAL(KEYWORD, tokens->kind);
+  TEST_ASSERT_EQUAL(IDENTIFIER, tokens->kind);
+}
