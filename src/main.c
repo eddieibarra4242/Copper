@@ -1,11 +1,11 @@
 #include <stdio.h>
 
 #include "common.h"
+#include "debug_ast.h"
 #include "log.h"
 #include "parser.h"
 #include "scanner.h"
-#include "ast.h"
-#include "debug_ast.h"
+#include "tree.h"
 
 int main(int args, char **argv) {
   if (args < 2) {
@@ -65,10 +65,10 @@ int main(int args, char **argv) {
   }
 
 #ifndef NDEBUG
-  //print_ast();
+  print_ast();
 #endif
 
-  destroy_tree();
+  destroy_ast();
   free_list(tokens);
 
   return 0;

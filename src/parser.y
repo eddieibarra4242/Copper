@@ -2,6 +2,7 @@
 #define _GNU_SOURCE
 #include "parser.h"
 #include "log.h"
+#include "tree.h"
 #include <string.h>
 %}
 
@@ -11,6 +12,9 @@
 
 %union {
   Token *tokenval;
+  struct id *idval;
+  struct declaration *declval;
+  struct translation_unit *unitval;
 }
 
 %token ID CONST STR
@@ -92,15 +96,20 @@
 %token P_ORE "|="
 %token P_DHASH "##"
 
+%type<tokenval> ID
+%type<unitval> translation_unit
+%type<declval> external_declaration function_definition declaration
+%type<idval> declarator direct_declarator array_declarator init_declarator_list init_declarator function_declarator
+
 %%
   /* External definitions (following A.3.4) */
-  translation_unit: external_declaration
-    | translation_unit external_declaration;
+  translation_unit: external_declaration { $$ = create_translation_unit($1); }
+    | translation_unit external_declaration { $$ = append_external_declaration($1, $2); }
 
-  external_declaration: function_definition
-    | declaration;
+  external_declaration: function_definition { $$ = $1; }
+    | declaration { $$ = $1; }
 
-  function_definition: attribute_specifier_sequence_opt declaration_specifiers declarator function_body;
+  function_definition: attribute_specifier_sequence_opt declaration_specifiers declarator function_body { $$ = create_declaration($3); }
 
   function_body: compound_statement;
 
@@ -207,11 +216,11 @@
   constant_expression: conditional_expression;
 
   /* Declarations (following A.2.2) */
-  declaration: declaration_specifiers ';' %dprec 2
-    |  declaration_specifiers init_declarator_list ';' %dprec 1
-    |  attribute_specifier_sequence declaration_specifiers init_declarator_list ';'
-    |  static_assert_declaration
-    |  attribute_declaration;
+  declaration: declaration_specifiers ';' %dprec 2 { $$ = create_declaration(NULL); }
+    |  declaration_specifiers init_declarator_list ';' %dprec 1 { $$ = create_declaration($2); }
+    |  attribute_specifier_sequence declaration_specifiers init_declarator_list ';' { $$ = create_declaration($3); }
+    |  static_assert_declaration { $$ = create_declaration(NULL); }
+    |  attribute_declaration { $$ = create_declaration(NULL); }
 
   declaration_specifiers: declaration_specifier attribute_specifier_sequence_opt
     | declaration_specifier declaration_specifiers;
@@ -220,11 +229,11 @@
     | type_specifier_qualifier
     | function_specifier;
 
-  init_declarator_list: init_declarator
-    | init_declarator_list ',' init_declarator;
+  init_declarator_list: init_declarator { $$ = $1; }
+    | init_declarator_list ',' init_declarator { $$ = $3; }
 
-  init_declarator: declarator
-    | declarator '=' initializer;
+  init_declarator: declarator { $$ = $1; }
+    | declarator '=' initializer { $$ = $1; }
 
   attribute_declaration: attribute_specifier_sequence ';';
 
@@ -314,19 +323,19 @@
   alignment_specifier: "alignas" '(' type_name ')'
     | "alignas" '(' constant_expression ')';
 
-  declarator: pointer_opt direct_declarator;
+  declarator: pointer_opt direct_declarator { $$ = $2; }
 
-  direct_declarator: ID attribute_specifier_sequence_opt
-    | '(' declarator ')'
-    | array_declarator attribute_specifier_sequence_opt
-    | function_declarator attribute_specifier_sequence_opt;
+  direct_declarator: ID attribute_specifier_sequence_opt { $$ = create_id($1); }
+    | '(' declarator ')' { $$ = $2; }
+    | array_declarator attribute_specifier_sequence_opt { $$ = $1; }
+    | function_declarator attribute_specifier_sequence_opt { $$ = $1; }
 
-  array_declarator: direct_declarator '[' type_qualifier_list_opt assignment_expression_opt ']'
-    | direct_declarator '[' "static" type_qualifier_list_opt assignment_expression ']'
-    | direct_declarator '[' type_qualifier_list "static" assignment_expression ']'
-    | direct_declarator '[' type_qualifier_list_opt '*' ']';
+  array_declarator: direct_declarator '[' type_qualifier_list_opt assignment_expression_opt ']' { $$ = $1; }
+    | direct_declarator '[' "static" type_qualifier_list_opt assignment_expression ']' { $$ = $1; }
+    | direct_declarator '[' type_qualifier_list "static" assignment_expression ']' { $$ = $1; }
+    | direct_declarator '[' type_qualifier_list_opt '*' ']' { $$ = $1; }
 
-  function_declarator: direct_declarator '(' parameter_type_list_opt ')';
+  function_declarator: direct_declarator '(' parameter_type_list_opt ')' { $$ = $1; }
 
   pointer: '*' attribute_specifier_sequence_opt type_qualifier_list_opt pointer_opt;
 

@@ -17,7 +17,7 @@ LINK_FLAGS += -ggdb
 
 OUTPUT_NAME = cu
 
-OBJ_FILES = main.o log.o scanner.o parser.o ast.o debug_ast.o
+OBJ_FILES = main.o log.o scanner.o parser.o tree.o debug_ast.o
 
 all: mkdirs $(OBJ_FILES)
 	$(CC) $(OBJ_FILES:%=../bin/int/%) -o ../bin/$(OUTPUT_NAME) $(LINK_FLAGS)
