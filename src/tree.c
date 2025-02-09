@@ -3,14 +3,26 @@
 
 #define NEW(ty) allocate_or_error(sizeof(ty))
 
+struct allocation {
+  void *address;
+  struct allocation *next;
+};
+
+struct allocation *allocation_list;
+
 AST root = NULL;
 
 void *allocate_or_error(size_t size) {
   void *result = malloc(size);
+  struct allocation *allocation = malloc(sizeof(struct allocation));
 
-  if (result == NULL) {
+  if (result == NULL || allocation == NULL) {
     CRITICAL("ast", "Out of memory!");
   }
+
+  allocation->address = result;
+  allocation->next = allocation_list;
+  allocation_list = allocation;
 
   return result;
 }
@@ -131,7 +143,7 @@ void destroy_specifiers(struct specifier_list *list) {
   free(list);
 }
 
-void destory_declaration(struct declaration *decl) {
+void destroy_declaration(struct declaration *decl) {
   destroy_specifiers(decl->specifiers);
   destroy_id(decl->name);
   free(decl);
@@ -143,14 +155,102 @@ void destroy_translation_unit(struct translation_unit *unit) {
 
   while (cur) {
     next = cur->next;
-    destory_declaration(cur);
+    destroy_declaration(cur);
     cur = next;
   }
 
   free(unit);
 }
 
+// Sense allocations
+void delete_allocation_entry(void *address) {
+  struct allocation *prev = NULL;
+  for (struct allocation *cur = allocation_list; cur != NULL; cur = cur->next) {
+    if (cur->address != address) {
+      prev = cur;
+      continue;
+    }
+
+    if (prev) {
+      prev->next = cur->next;
+    } else {
+      allocation_list = cur->next;
+    }
+
+    free(cur);
+    break;
+  }
+}
+
+void sense_id(struct id *id) { delete_allocation_entry(id); }
+
+void sense_specifier(struct specifier *specifier) {
+  switch (specifier->type) {
+  case TOKEN: /* Do nothing */
+    break;
+  case ID_SPEC:
+    sense_id(specifier->_id);
+    break;
+  }
+
+  delete_allocation_entry(specifier);
+}
+
+void sense_specifiers(struct specifier_list *list) {
+  struct specifier *cur = list->head;
+  struct specifier *next = NULL;
+
+  while (cur) {
+    next = cur->next;
+    sense_specifier(cur);
+    cur = next;
+  }
+
+  delete_allocation_entry(list);
+}
+
+void sense_declaration(struct declaration *decl) {
+  sense_specifiers(decl->specifiers);
+  sense_id(decl->name);
+  delete_allocation_entry(decl);
+}
+
+void sense_translation_unit(struct translation_unit *unit) {
+  struct declaration *cur = unit->external_declarations.head;
+  struct declaration *next = NULL;
+
+  while (cur) {
+    next = cur->next;
+    sense_declaration(cur);
+    cur = next;
+  }
+
+  delete_allocation_entry(unit);
+}
+
 AST get_tree() { return root; }
+
+void free_unused_parse_branches() {
+  if (!root)
+    return;
+
+  sense_translation_unit(root);
+
+  size_t unused_allocations_count = 0;
+  struct allocation *cur = allocation_list;
+  allocation_list = NULL;
+
+  struct allocation *next = NULL;
+  while (cur != NULL) {
+    next = cur->next;
+    free(cur->address);
+    free(cur);
+    cur = next;
+    unused_allocations_count++;
+  }
+
+  DEBUG("Freed %zu unused blocks", unused_allocations_count);
+}
 
 void destroy_ast() {
   if (root)

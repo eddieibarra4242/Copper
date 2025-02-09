@@ -18,4 +18,5 @@ struct specifier_list *prepend_specifier(struct specifier *prefix,
                                          struct specifier_list *list);
 
 AST get_tree();
+void free_unused_parse_branches();
 void destroy_ast();
