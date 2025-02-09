@@ -2,14 +2,36 @@
 
 #include "scanner.h"
 
+enum specifier_t {
+  TOKEN,
+  ID_SPEC,
+};
+
 struct id {
   Token *name;
 };
 
+struct specifier {
+  enum specifier_t type;
+
+  union {
+    Token *_token;
+    struct id *_id;
+  };
+
+  // this is apart of a list
+  struct specifier *next;
+};
+
+struct specifier_list {
+  struct specifier *head;
+};
+
 struct declaration {
+  struct specifier_list *specifiers;
   struct id *name;
 
-  // list
+  // this is apart of a list
   struct declaration *next;
 };
 

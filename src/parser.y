@@ -13,6 +13,8 @@
 %union {
   Token *tokenval;
   struct id *idval;
+  struct specifier *specval;
+  struct specifier_list *speclistval;
   struct declaration *declval;
   struct translation_unit *unitval;
 }
@@ -96,10 +98,27 @@
 %token P_ORE "|="
 %token P_DHASH "##"
 
-%type<tokenval> ID
+%type<tokenval> ID CONST STR
+
+%type<tokenval> K_alignas K_alignof K_auto K_bool K_break K_case K_char K_const
+%type<tokenval> K_constexpr K_continue K_default K_do K_double K_else K_enum
+%type<tokenval> K_extern K_float K_for K_goto K_if K_inline K_int K_long
+%type<tokenval> K_register K_restrict K_return K_short K_signed K_sizeof
+%type<tokenval> K_static K_static_assert K_struct K_switch K_thread_local
+%type<tokenval> K_typedef K_typeof K_typeof_unqual K_union K_unsigned K_void
+%type<tokenval> K_volatile K_while K__Atomic K__BitInt K__Complex K__Decimal128
+%type<tokenval> K__Decimal32 K__Decimal64 K__Generic K__Imaginary K__Noreturn
+
+%type<tokenval> struct_or_union
 %type<unitval> translation_unit
 %type<declval> external_declaration function_definition declaration
-%type<idval> declarator direct_declarator array_declarator init_declarator_list init_declarator function_declarator
+%type<idval> declarator direct_declarator array_declarator init_declarator_list
+%type<idval> init_declarator function_declarator typedef_name
+%type<specval> declaration_specifier storage_class_specifier
+%type<specval> type_specifier_qualifier function_specifier atomic_type_specifier
+%type<specval> struct_or_union_specifier enum_specifier typeof_specifier
+%type<specval> type_specifier type_qualifier alignment_specifier
+%type<speclistval> declaration_specifiers
 
 %%
   /* External definitions (following A.3.4) */
@@ -109,7 +128,7 @@
   external_declaration: function_definition { $$ = $1; }
     | declaration { $$ = $1; }
 
-  function_definition: attribute_specifier_sequence_opt declaration_specifiers declarator function_body { $$ = create_declaration($3); }
+  function_definition: attribute_specifier_sequence_opt declaration_specifiers declarator function_body { $$ = create_declaration($2, $3); }
 
   function_body: compound_statement;
 
@@ -216,18 +235,18 @@
   constant_expression: conditional_expression;
 
   /* Declarations (following A.2.2) */
-  declaration: declaration_specifiers ';' %dprec 2 { $$ = create_declaration(NULL); }
-    |  declaration_specifiers init_declarator_list ';' %dprec 1 { $$ = create_declaration($2); }
-    |  attribute_specifier_sequence declaration_specifiers init_declarator_list ';' { $$ = create_declaration($3); }
-    |  static_assert_declaration { $$ = create_declaration(NULL); }
-    |  attribute_declaration { $$ = create_declaration(NULL); }
+  declaration: declaration_specifiers ';' %dprec 2 { $$ = create_declaration($1, NULL); }
+    |  declaration_specifiers init_declarator_list ';' %dprec 1 { $$ = create_declaration($1, $2); }
+    |  attribute_specifier_sequence declaration_specifiers init_declarator_list ';' { $$ = create_declaration($2, $3); }
+    |  static_assert_declaration { $$ = create_declaration(NULL, NULL); }
+    |  attribute_declaration { $$ = create_declaration(NULL, NULL); }
 
-  declaration_specifiers: declaration_specifier attribute_specifier_sequence_opt
-    | declaration_specifier declaration_specifiers;
+  declaration_specifiers: declaration_specifier attribute_specifier_sequence_opt { $$ = create_specifier_list($1); }
+    | declaration_specifier declaration_specifiers { $$ = prepend_specifier($1, $2); }
 
-  declaration_specifier: storage_class_specifier
-    | type_specifier_qualifier
-    | function_specifier;
+  declaration_specifier: storage_class_specifier { $$ = $1; }
+    | type_specifier_qualifier { $$ = $1; }
+    | function_specifier { $$ = $1; }
 
   init_declarator_list: init_declarator { $$ = $1; }
     | init_declarator_list ',' init_declarator { $$ = $3; }
@@ -237,41 +256,41 @@
 
   attribute_declaration: attribute_specifier_sequence ';';
 
-  storage_class_specifier: "auto"
-    | "constexpr"
-    | "extern"
-    | "register"
-    | "static"
-    | "thread_local"
-    | "typedef";
+  storage_class_specifier: "auto" { $$ = create_token_specifier($1); }
+    | "constexpr" { $$ = create_token_specifier($1); }
+    | "extern" { $$ = create_token_specifier($1); }
+    | "register" { $$ = create_token_specifier($1); }
+    | "static" { $$ = create_token_specifier($1); }
+    | "thread_local" { $$ = create_token_specifier($1); }
+    | "typedef" { $$ = create_token_specifier($1); }
 
-  type_specifier: "void"
-    | "bool"
-    | "char"
-    | "short"
-    | "int"
-    | "long"
-    | "float"
-    | "double"
-    | "signed"
-    | "unsigned"
-    | "_BitInt" '(' constant_expression ')'
-    | "_Complex"
-    | "_Decimal32"
-    | "_Decimal64"
-    | "_Decimal128"
-    | atomic_type_specifier
-    | struct_or_union_specifier
-    | enum_specifier
-    | typedef_name
-    | typeof_specifier;
+  type_specifier: "void" { $$ = create_token_specifier($1); }
+    | "bool" { $$ = create_token_specifier($1); }
+    | "char" { $$ = create_token_specifier($1); }
+    | "short" { $$ = create_token_specifier($1); }
+    | "int" { $$ = create_token_specifier($1); }
+    | "long" { $$ = create_token_specifier($1); }
+    | "float" { $$ = create_token_specifier($1); }
+    | "double" { $$ = create_token_specifier($1); }
+    | "signed" { $$ = create_token_specifier($1); }
+    | "unsigned" { $$ = create_token_specifier($1); }
+    | "_BitInt" '(' constant_expression ')' { $$ = create_token_specifier($1); /* FIXME */}
+    | "_Complex" { $$ = create_token_specifier($1); }
+    | "_Decimal32" { $$ = create_token_specifier($1); }
+    | "_Decimal64" { $$ = create_token_specifier($1); }
+    | "_Decimal128" { $$ = create_token_specifier($1); }
+    | atomic_type_specifier { $$ = $1; }
+    | struct_or_union_specifier { $$ = $1; }
+    | enum_specifier { $$ = $1; }
+    | typedef_name { $$ = create_id_specifier($1); }
+    | typeof_specifier { $$ = $1; }
 
   struct_or_union_specifier:
-  struct_or_union attribute_specifier_sequence_opt identifier_opt '{' member_declaration_list '}'
-    | struct_or_union attribute_specifier_sequence_opt ID;
+  struct_or_union attribute_specifier_sequence_opt identifier_opt '{' member_declaration_list '}' { $$ = create_token_specifier($1); /* FIXME */}
+    | struct_or_union attribute_specifier_sequence_opt ID { $$ = create_token_specifier($1); /* FIXME */}
 
-  struct_or_union: "struct"
-    | "union";
+  struct_or_union: "struct" { $$ = $1; }
+    | "union" { $$ = $1; }
 
   member_declaration_list: member_declaration
     | member_declaration_list member_declaration;
@@ -283,9 +302,9 @@
   specifier_qualifier_list: type_specifier_qualifier attribute_specifier_sequence_opt
     | type_specifier_qualifier specifier_qualifier_list;
 
-  type_specifier_qualifier: type_specifier
-    | type_qualifier
-    | alignment_specifier;
+  type_specifier_qualifier: type_specifier { $$ = $1; }
+    | type_qualifier { $$ = $1; }
+    | alignment_specifier { $$ = $1; }
 
   member_declarator_list: member_declarator
     | member_declarator_list ',' member_declarator;
@@ -293,8 +312,9 @@
   member_declarator: declarator
     | declarator_opt ':' constant_expression;
 
-  enum_specifier: "enum" attribute_specifier_sequence_opt identifier_opt enum_type_specifier_opt '{' enumerator_list comma_opt '}'
-    | "enum" ID enum_type_specifier_opt;
+  enum_specifier:
+  "enum" attribute_specifier_sequence_opt identifier_opt enum_type_specifier_opt '{' enumerator_list comma_opt '}' { $$ = create_token_specifier($1); /* FIXME */}
+    | "enum" ID enum_type_specifier_opt { $$ = create_token_specifier($1); /* FIXME */}
 
   enumerator_list: enumerator
     | enumerator_list ',' enumerator;
@@ -304,24 +324,24 @@
 
   enum_type_specifier: ':' specifier_qualifier_list;
 
-  atomic_type_specifier: "_Atomic" '(' type_name ')';
+  atomic_type_specifier: "_Atomic" '(' type_name ')' { $$ = create_token_specifier($1); /* FIXME */}
 
-  typeof_specifier: "typeof" '(' typeof_specifier_argument ')'
-    | "typeof_unqual" '(' typeof_specifier_argument ')';
+  typeof_specifier: "typeof" '(' typeof_specifier_argument ')' { $$ = create_token_specifier($1); /* FIXME */}
+    | "typeof_unqual" '(' typeof_specifier_argument ')' { $$ = create_token_specifier($1); /* FIXME */}
 
   typeof_specifier_argument: expression
     | type_name;
 
-  type_qualifier: "const"
-    | "restrict"
-    | "volatile"
-    | "_Atomic";
+  type_qualifier: "const" { $$ = create_token_specifier($1); }
+    | "restrict" { $$ = create_token_specifier($1); }
+    | "volatile" { $$ = create_token_specifier($1); }
+    | "_Atomic" { $$ = create_token_specifier($1); }
 
-  function_specifier: "inline"
-    | "_Noreturn";
+  function_specifier: "inline" { $$ = create_token_specifier($1); }
+    | "_Noreturn" { $$ = create_token_specifier($1); }
 
-  alignment_specifier: "alignas" '(' type_name ')'
-    | "alignas" '(' constant_expression ')';
+  alignment_specifier: "alignas" '(' type_name ')' { $$ = create_token_specifier($1); /* FIXME */}
+    | "alignas" '(' constant_expression ')' { $$ = create_token_specifier($1); /* FIXME */}
 
   declarator: pointer_opt direct_declarator { $$ = $2; }
 
@@ -368,7 +388,7 @@
 
   function_abstract_declarator: direct_abstract_declarator_opt '(' parameter_type_list_opt ')';
 
-  typedef_name: ID;
+  typedef_name: ID { $$ = create_id($1); }
 
   braced_initializer: '{' '}'
     | '{' initializer_list '}'

@@ -62,10 +62,46 @@ void print_id(struct id *id) {
   stack--;
 }
 
+void print_token_specifier(struct specifier *specifier) {
+  print("Token specifier");
+
+  stack++;
+  print_token(specifier->_token);
+  stack--;
+}
+
+void print_id_specifier(struct specifier *specifier) {
+  print("Id specifier");
+
+  stack++;
+  print_id(specifier->_id);
+  stack--;
+}
+
+void print_specifier(struct specifier *specifier) {
+  switch (specifier->type) {
+  case TOKEN:
+    print_token_specifier(specifier);
+    break;
+  case ID_SPEC:
+    print_id_specifier(specifier);
+    break;
+  }
+}
+
+void print_specifier_list(struct specifier_list *list) {
+  for (struct specifier *cur = list->head; cur != NULL; cur = cur->next) {
+    print_specifier(cur);
+  }
+}
+
 void print_declaration(struct declaration *decl) {
   print("Declaration");
 
   stack++;
+
+  if (decl->specifiers)
+    print_specifier_list(decl->specifiers);
 
   if (decl->name)
     print_id(decl->name);
