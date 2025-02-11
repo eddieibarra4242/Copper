@@ -16,6 +16,8 @@
   struct specifier *specval;
   struct specifier_list *speclistval;
   struct declaration *declval;
+  struct statement *stmtval;
+  struct statement_list *stmtlistval;
   struct translation_unit *unitval;
 }
 
@@ -113,12 +115,17 @@
 %type<unitval> translation_unit
 %type<declval> external_declaration function_definition declaration
 %type<idval> declarator direct_declarator array_declarator init_declarator_list
-%type<idval> init_declarator function_declarator typedef_name
+%type<idval> init_declarator function_declarator typedef_name identifier
 %type<specval> declaration_specifier storage_class_specifier
 %type<specval> type_specifier_qualifier function_specifier atomic_type_specifier
 %type<specval> struct_or_union_specifier enum_specifier typeof_specifier
 %type<specval> type_specifier type_qualifier alignment_specifier
 %type<speclistval> declaration_specifiers
+%type<stmtval> function_body compound_statement unlabeled_statement
+%type<stmtval> primary_block label block_item expression_statement
+%type<stmtval> selection_statement iteration_statement jump_statement
+%type<stmtval> secondary_block
+%type<stmtlistval> block_item_list_opt block_item_list labeled_statement statement
 
 %%
   /* External definitions (following A.3.4) */
@@ -128,9 +135,9 @@
   external_declaration: function_definition { $$ = $1; }
     | declaration { $$ = $1; }
 
-  function_definition: attribute_specifier_sequence_opt declaration_specifiers declarator function_body { $$ = create_declaration($2, $3); }
+  function_definition: attribute_specifier_sequence_opt declaration_specifiers declarator function_body { $$ = create_function($2, $3, $4); }
 
-  function_body: compound_statement;
+  function_body: compound_statement { $$ = $1; }
 
   /* Expressions (following A.2.1) */
   primary_expression: ID
@@ -442,52 +449,53 @@
   // TODO: any token other than a parenthesis, a bracket, or a brace
 
   /* Statements (following A.3.3) */
-  statement: labeled_statement
-    | unlabeled_statement;
+  statement: labeled_statement { $$ = $1; }
+    | unlabeled_statement { $$ = create_stmt_list($1); }
 
-  unlabeled_statement: expression_statement
-    | attribute_specifier_sequence_opt primary_block
-    | attribute_specifier_sequence_opt jump_statement;
+  unlabeled_statement: expression_statement { $$ = $1; }
+    | attribute_specifier_sequence_opt primary_block { $$ = $2; }
+    | attribute_specifier_sequence_opt jump_statement { $$ = $2; }
 
-  primary_block: compound_statement
-    | selection_statement
-    | iteration_statement;
+  primary_block: compound_statement { $$ = $1; }
+    | selection_statement { $$ = $1; }
+    | iteration_statement { $$ = $1; }
 
-  secondary_block: statement;
+  secondary_block: statement { $$ = create_compound_stmt($1); }
 
-  label: attribute_specifier_sequence_opt ID ':'
-    | attribute_specifier_sequence_opt "case" constant_expression ':'
-    | attribute_specifier_sequence_opt "default" ':';
+  label: attribute_specifier_sequence_opt identifier ':' { $$ = create_label_stmt($2); }
+    | attribute_specifier_sequence_opt "case" constant_expression ':' { $$ = create_case_stmt(); }
+    | attribute_specifier_sequence_opt "default" ':' { $$ = create_default_stmt(); }
 
-  labeled_statement: label statement;
+  labeled_statement: label statement { $$ = prepend_stmt($1, $2); }
 
-  compound_statement: '{' block_item_list_opt '}';
+  compound_statement: '{' block_item_list_opt '}' { $$ = create_compound_stmt($2); }
 
-  block_item_list: block_item
-    | block_item_list block_item;
+  block_item_list: block_item { $$ = create_stmt_list($1); }
+    | block_item_list block_item { $$ = append_stmt($1, $2); }
 
-  block_item: declaration
-    | unlabeled_statement
-    | label;
+  block_item: declaration { $$ = create_decl_stmt($1); }
+    | unlabeled_statement { $$ = $1; }
+    | label { $$ = $1; }
 
-  expression_statement: expression_opt ';'
-    | attribute_specifier_sequence expression ';';
+  expression_statement: expression_opt ';' { $$ = create_expr_stmt(); }
+    | attribute_specifier_sequence expression ';' { $$ = create_expr_stmt(); }
 
-  selection_statement: "if" '(' expression ')' secondary_block %dprec 1
-    | "if" '(' expression ')' secondary_block "else" secondary_block %dprec 2
-    | "switch" '(' expression ')' secondary_block;
+  selection_statement: "if" '(' expression ')' secondary_block %dprec 1 { $$ = create_if_stmt($5, NULL); }
+    | "if" '(' expression ')' secondary_block "else" secondary_block %dprec 2 { $$ = create_if_stmt($5, $7); }
+    | "switch" '(' expression ')' secondary_block { $$ = create_switch_stmt($5); }
 
-  iteration_statement: "while" '(' expression ')' secondary_block
-    | "do" secondary_block "while" '(' expression ')' ';'
-    | "for" '(' expression_opt ';' expression_opt ';' expression_opt ')' secondary_block
-    | "for" '(' declaration expression_opt ';' expression_opt ')' secondary_block;
+  iteration_statement: "while" '(' expression ')' secondary_block { $$ = create_while_stmt($5); }
+    | "do" secondary_block "while" '(' expression ')' ';' { $$ = create_do_while_stmt($2); }
+    | "for" '(' expression_opt ';' expression_opt ';' expression_opt ')' secondary_block { $$ = create_for_stmt(NULL, $9); }
+    | "for" '(' declaration expression_opt ';' expression_opt ')' secondary_block { $$ = create_for_stmt($3, $8); }
 
-  jump_statement: "goto" ID ';'
-    | "continue" ';'
-    | "break" ';'
-    | "return" expression_opt ';';
+  jump_statement: "goto" identifier ';' { $$ = create_goto_stmt($2); }
+    | "continue" ';' { $$ = create_continue_stmt(); }
+    | "break" ';' { $$ = create_break_stmt(); }
+    | "return" expression_opt ';' { $$ = create_return_stmt(); }
 
   /* The following non-terminal definitions do not appear in spec. */
+  identifier: ID { $$ = create_id($1); }
   identifier_opt: %empty | ID;
   balanced_token_sequence_opt: %empty | balanced_token_sequence;
   attribute_argument_clause_opt: %empty | attribute_argument_clause;
@@ -505,7 +513,8 @@
   storage_class_specifiers_opt: %empty | storage_class_specifiers;
   attribute_specifier_sequence_opt: %empty | attribute_specifier_sequence;
   expression_opt: %empty | expression;
-  block_item_list_opt: %empty | block_item_list;
+  block_item_list_opt: %empty { $$ = NULL; }
+    | block_item_list { $$ = $1; }
 
   // For trailing comma support
   comma_opt: %empty | ',';
