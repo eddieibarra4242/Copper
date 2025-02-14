@@ -64,6 +64,7 @@ int main(int args, char **argv) {
     CRITICAL("parser", "Failed to parse file!");
   }
 
+  free_type_alias_memory();
   free_unused_parse_branches();
 
 #ifndef NDEBUG

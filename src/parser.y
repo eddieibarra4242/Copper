@@ -4,10 +4,13 @@
 #include "log.h"
 #include "tree.h"
 #include <string.h>
+#include <stdlib.h>
+
+struct id *register_type(Token *new_type);
 %}
 
 %glr-parser
-%expect 213
+%expect 219
 %expect-rr 6
 
 %union {
@@ -21,7 +24,7 @@
   struct translation_unit *unitval;
 }
 
-%token ID CONST STR
+%token ID CONST STR TYPE_ALIAS
 
 %token K_alignas "alignas"
 %token K_alignof "alignof"
@@ -100,7 +103,7 @@
 %token P_ORE "|="
 %token P_DHASH "##"
 
-%type<tokenval> ID CONST STR
+%type<tokenval> ID CONST STR TYPE_ALIAS
 
 %type<tokenval> K_alignas K_alignof K_auto K_bool K_break K_case K_char K_const
 %type<tokenval> K_constexpr K_continue K_default K_do K_double K_else K_enum
@@ -187,8 +190,8 @@
     | '~'
     | '!';
 
-  cast_expression: unary_expression
-    | '(' type_name ')' cast_expression;
+  cast_expression: unary_expression %dprec 2
+    | '(' type_name ')' cast_expression %dprec 1;
 
   multiplicative_expression: cast_expression
     | multiplicative_expression '*' cast_expression
@@ -395,7 +398,8 @@
 
   function_abstract_declarator: direct_abstract_declarator_opt '(' parameter_type_list_opt ')';
 
-  typedef_name: ID { $$ = create_id($1); }
+  typedef_name: ID { $$ = register_type($1); }
+    | TYPE_ALIAS { $$ = create_id($1); }
 
   braced_initializer: '{' '}'
     | '{' initializer_list '}'
@@ -526,12 +530,30 @@
 Token *cur;
 Token *next;
 
+struct type_alias {
+  const char *type_name;
+  struct type_alias *next;
+};
+
+struct type_alias *alias_list = NULL;
+
 void init_parser(Token *list) {
 #if YYDEBUG
   yydebug = 1;
 #endif
   cur = NULL;
   next = list;
+}
+
+void free_type_alias_memory(void) {
+  struct type_alias *cur = alias_list;
+  struct type_alias *next = NULL;
+
+  while (cur) {
+    next = cur->next;
+    free(cur);
+    cur = next;
+  }
 }
 
 int get_keyword() {
@@ -639,6 +661,33 @@ int get_punct() {
   return YYUNDEF;
 }
 
+struct id *register_type(Token *new_type) {
+  struct type_alias *new_alias = malloc(sizeof(struct type_alias));
+
+  if (new_alias == NULL) {
+    ERROR("parser", "Out of memory!");
+  }
+
+  new_alias->type_name = new_type->data; // Bad object sharing...
+  new_alias->next = alias_list;
+  alias_list = new_alias;
+
+  return create_id(new_type);
+}
+
+int is_next_type_alias(void) {
+  for (struct type_alias *cur = alias_list; cur != NULL; cur = cur->next) {
+    DEBUG("%s <=> %s", next->data, cur->type_name);
+
+    if (strcmp(next->data, cur->type_name) == 0) {
+      return TYPE_ALIAS;
+    }
+  }
+
+  // Only ID's can possibly be a TYPE_ALIAS
+  return ID;
+}
+
 int yylex(void) {
   if (!next)
     return YYUNDEF;
@@ -665,6 +714,10 @@ int yylex(void) {
   case EOF:
     ret = YYEOF;
     break;
+  }
+
+  if (ret == ID) {
+    ret = is_next_type_alias();
   }
 
   cur = next;
