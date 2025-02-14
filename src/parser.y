@@ -192,8 +192,6 @@ struct id *register_type(Token *new_type);
 
   cast_expression: unary_expression %dprec 2
     | '(' type_name ')' cast_expression %dprec 1;
-  cast_expression: unary_expression %dprec 2
-    | '(' type_name ')' cast_expression %dprec 1;
 
   multiplicative_expression: cast_expression
     | multiplicative_expression '*' cast_expression
