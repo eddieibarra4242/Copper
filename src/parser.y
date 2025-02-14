@@ -7,13 +7,9 @@
 #include <stdlib.h>
 
 struct id *register_type(Token *new_type);
-#include <stdlib.h>
-
-struct id *register_type(Token *new_type);
 %}
 
 %glr-parser
-%expect 219
 %expect 219
 %expect-rr 6
 
@@ -28,7 +24,6 @@ struct id *register_type(Token *new_type);
   struct translation_unit *unitval;
 }
 
-%token ID CONST STR TYPE_ALIAS
 %token ID CONST STR TYPE_ALIAS
 
 %token K_alignas "alignas"
@@ -108,7 +103,6 @@ struct id *register_type(Token *new_type);
 %token P_ORE "|="
 %token P_DHASH "##"
 
-%type<tokenval> ID CONST STR TYPE_ALIAS
 %type<tokenval> ID CONST STR TYPE_ALIAS
 
 %type<tokenval> K_alignas K_alignof K_auto K_bool K_break K_case K_char K_const
@@ -408,8 +402,6 @@ struct id *register_type(Token *new_type);
 
   typedef_name: ID { $$ = register_type($1); }
     | TYPE_ALIAS { $$ = create_id($1); }
-  typedef_name: ID { $$ = register_type($1); }
-    | TYPE_ALIAS { $$ = create_id($1); }
 
   braced_initializer: '{' '}'
     | '{' initializer_list '}'
@@ -547,30 +539,12 @@ struct type_alias {
 
 struct type_alias *alias_list = NULL;
 
-struct type_alias {
-  const char *type_name;
-  struct type_alias *next;
-};
-
-struct type_alias *alias_list = NULL;
-
 void init_parser(Token *list) {
 #if YYDEBUG
   yydebug = 1;
 #endif
   cur = NULL;
   next = list;
-}
-
-void free_type_alias_memory(void) {
-  struct type_alias *cur = alias_list;
-  struct type_alias *next = NULL;
-
-  while (cur) {
-    next = cur->next;
-    free(cur);
-    cur = next;
-  }
 }
 
 void free_type_alias_memory(void) {
@@ -740,10 +714,6 @@ int yylex(void) {
   case EOF:
     ret = YYEOF;
     break;
-  }
-
-  if (ret == ID) {
-    ret = is_next_type_alias();
   }
 
   if (ret == ID) {
