@@ -1,7 +1,6 @@
 // This is the our scanner without any preprocessing stuff.
 
 typedef unsigned long size_t;
-typedef char bool;
 
 typedef int kind_t;
 

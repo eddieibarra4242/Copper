@@ -6,12 +6,12 @@
 #include <string.h>
 #include <stdlib.h>
 
-struct id *register_type(Token *new_type);
+struct id *register_type(struct id *new_type);
 %}
 
 %glr-parser
-%expect 219
-%expect-rr 6
+%expect 208
+%expect-rr 1
 
 %union {
   Token *tokenval;
@@ -117,8 +117,10 @@ struct id *register_type(Token *new_type);
 %type<tokenval> struct_or_union
 %type<unitval> translation_unit
 %type<declval> external_declaration function_definition declaration
+%type<declval> typedef_declaration
 %type<idval> declarator direct_declarator array_declarator init_declarator_list
 %type<idval> init_declarator function_declarator typedef_name identifier
+%type<idval> typedef_declarator
 %type<specval> declaration_specifier storage_class_specifier
 %type<specval> type_specifier_qualifier function_specifier atomic_type_specifier
 %type<specval> struct_or_union_specifier enum_specifier typeof_specifier
@@ -128,7 +130,8 @@ struct id *register_type(Token *new_type);
 %type<stmtval> primary_block label block_item expression_statement
 %type<stmtval> selection_statement iteration_statement jump_statement
 %type<stmtval> secondary_block
-%type<stmtlistval> block_item_list_opt block_item_list labeled_statement statement
+%type<stmtlistval> block_item_list_opt block_item_list labeled_statement
+%type<stmtlistval> statement
 
 %%
   /* External definitions (following A.3.4) */
@@ -250,6 +253,7 @@ struct id *register_type(Token *new_type);
     |  attribute_specifier_sequence declaration_specifiers init_declarator_list ';' { $$ = create_declaration($2, $3); }
     |  static_assert_declaration { $$ = create_declaration(NULL, NULL); }
     |  attribute_declaration { $$ = create_declaration(NULL, NULL); }
+    |  attribute_specifier_sequence_opt typedef_declaration { $$ = $2; }
 
   declaration_specifiers: declaration_specifier attribute_specifier_sequence_opt { $$ = create_specifier_list($1); }
     | declaration_specifier declaration_specifiers { $$ = prepend_specifier($1, $2); }
@@ -266,13 +270,18 @@ struct id *register_type(Token *new_type);
 
   attribute_declaration: attribute_specifier_sequence ';';
 
+  /* The following rule does not appear in the spec. */
+  typedef_declaration: "typedef" declaration_specifiers typedef_declarator ';' { $$ = create_declaration($2, $3); }
+
+  /* The following rule does not appear in the spec. */
+  typedef_declarator: declarator { $$ = register_type($1); }
+
   storage_class_specifier: "auto" { $$ = create_token_specifier($1); }
     | "constexpr" { $$ = create_token_specifier($1); }
     | "extern" { $$ = create_token_specifier($1); }
     | "register" { $$ = create_token_specifier($1); }
     | "static" { $$ = create_token_specifier($1); }
     | "thread_local" { $$ = create_token_specifier($1); }
-    | "typedef" { $$ = create_token_specifier($1); }
 
   type_specifier: "void" { $$ = create_token_specifier($1); }
     | "bool" { $$ = create_token_specifier($1); }
@@ -398,8 +407,11 @@ struct id *register_type(Token *new_type);
 
   function_abstract_declarator: direct_abstract_declarator_opt '(' parameter_type_list_opt ')';
 
-  typedef_name: ID { $$ = register_type($1); }
-    | TYPE_ALIAS { $$ = create_id($1); }
+  /*
+    The ID should have been registered by the lexer hack already. ID was
+    replaced by TYPE_ALIAS
+  */
+  typedef_name: TYPE_ALIAS { $$ = create_id($1); }
 
   braced_initializer: '{' '}'
     | '{' initializer_list '}'
@@ -661,18 +673,26 @@ int get_punct() {
   return YYUNDEF;
 }
 
-struct id *register_type(Token *new_type) {
+struct id *register_type(struct id *new_type) {
   struct type_alias *new_alias = malloc(sizeof(struct type_alias));
 
   if (new_alias == NULL) {
     ERROR("parser", "Out of memory!");
   }
 
-  new_alias->type_name = new_type->data; // Bad object sharing...
+#ifndef NDEBUG
+  DEBUG("Registering %s... (line %zu:%zu)",
+    new_type->name->data,
+    new_type->name->span.start.line_number,
+    new_type->name->span.start.column
+  );
+#endif
+
+  new_alias->type_name = new_type->name->data; // Bad object sharing...
   new_alias->next = alias_list;
   alias_list = new_alias;
 
-  return create_id(new_type);
+  return new_type;
 }
 
 int is_next_type_alias(void) {
