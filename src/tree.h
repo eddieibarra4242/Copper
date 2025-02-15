@@ -8,6 +8,8 @@ struct declaration *create_declaration(struct specifier_list *specifiers,
 struct declaration *create_function(struct specifier_list *specifiers,
                                     struct id *identifier,
                                     struct statement *body);
+struct declaration *create_type_definition(struct specifier_list *specifiers,
+                                           struct id *identifier);
 struct translation_unit *create_translation_unit(struct declaration *first);
 struct translation_unit *
 append_external_declaration(struct translation_unit *list,

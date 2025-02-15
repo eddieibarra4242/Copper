@@ -45,6 +45,8 @@ struct specifier_list {
 };
 
 struct declaration {
+  bool is_type_definition;
+
   struct specifier_list *specifiers;
   struct id *name;
 

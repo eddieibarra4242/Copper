@@ -271,11 +271,12 @@ struct id *register_type(struct id *new_type);
   attribute_declaration: attribute_specifier_sequence ';';
 
   /* The following rule does not appear in the spec. */
-  typedef_declaration: "typedef" declaration_specifiers typedef_declarator ';' { $$ = create_declaration($2, $3); }
+  typedef_declaration: "typedef" declaration_specifiers typedef_declarator ';' { $$ = create_type_definition($2, $3); }
 
   /* The following rule does not appear in the spec. */
   typedef_declarator: declarator { $$ = register_type($1); }
 
+  /* `typedef` was removed from this rule. */
   storage_class_specifier: "auto" { $$ = create_token_specifier($1); }
     | "constexpr" { $$ = create_token_specifier($1); }
     | "extern" { $$ = create_token_specifier($1); }

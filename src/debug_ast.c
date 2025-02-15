@@ -101,6 +101,8 @@ void print_statement(struct statement *stmt);
 void print_declaration(struct declaration *decl) {
   if (decl->body) {
     print("Function");
+  } else if (decl->is_type_definition) {
+    print("Typedef");
   } else {
     print("Declaration");
   }

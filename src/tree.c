@@ -41,6 +41,7 @@ struct declaration *create_declaration(struct specifier_list *specifiers,
                                        struct id *identifier) {
   struct declaration *decl = NEW(struct declaration);
 
+  decl->is_type_definition = false;
   decl->specifiers = specifiers;
   decl->name = identifier;
   decl->body = NULL;
@@ -54,9 +55,23 @@ struct declaration *create_function(struct specifier_list *specifiers,
                                     struct statement *body) {
   struct declaration *decl = NEW(struct declaration);
 
+  decl->is_type_definition = false;
   decl->specifiers = specifiers;
   decl->name = identifier;
   decl->body = body;
+  decl->next = NULL;
+
+  return decl;
+}
+
+struct declaration *create_type_definition(struct specifier_list *specifiers,
+                                           struct id *identifier) {
+  struct declaration *decl = NEW(struct declaration);
+
+  decl->is_type_definition = true;
+  decl->specifiers = specifiers;
+  decl->name = identifier;
+  decl->body = NULL;
   decl->next = NULL;
 
   return decl;
@@ -567,9 +582,7 @@ void sense_compound_stmt(struct statement *stmt) {
   }
 }
 
-void sense_decl_stmt(struct statement *stmt) {
-  sense_declaration(stmt->_decl);
-}
+void sense_decl_stmt(struct statement *stmt) { sense_declaration(stmt->_decl); }
 
 void sense_for_stmt(struct statement *stmt) {
   if (stmt->_for.decl) {
@@ -581,9 +594,7 @@ void sense_for_stmt(struct statement *stmt) {
   }
 }
 
-void sense_goto_stmt(struct statement *stmt) {
-  sense_id(stmt->_goto);
-}
+void sense_goto_stmt(struct statement *stmt) { sense_id(stmt->_goto); }
 
 void sense_if_stmt(struct statement *stmt) {
   if (stmt->_if.body) {
@@ -595,9 +606,7 @@ void sense_if_stmt(struct statement *stmt) {
   }
 }
 
-void sense_label_stmt(struct statement *stmt) {
-  sense_id(stmt->_label.name);
-}
+void sense_label_stmt(struct statement *stmt) { sense_id(stmt->_label.name); }
 
 void sense_switch_stmt(struct statement *stmt) {
   if (stmt->_switch.body) {
