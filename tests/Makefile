@@ -14,7 +14,7 @@ all: mkdirs $(TESTS)
 	$(CC) \
 		../bin/int/scanner.o \
 		../bin/int/parser.o \
-		../bin/int/ast.o \
+		../bin/int/tree.o \
 		../bin/int/parser.test.o \
 		../bin/int/parser.runner.o \
 		-o ../bin/tests/parser.test $(LINK_FLAGS)
