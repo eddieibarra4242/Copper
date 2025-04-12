@@ -22,6 +22,8 @@ struct id *register_type(struct id *new_type);
   struct statement *stmtval;
   struct statement_list *stmtlistval;
   struct translation_unit *unitval;
+  struct expression *exprval;
+  struct expression_list *exprlistval;
 }
 
 %token ID CONST STR TYPE_ALIAS
@@ -114,7 +116,13 @@ struct id *register_type(struct id *new_type);
 %type<tokenval> K_volatile K_while K__Atomic K__BitInt K__Complex K__Decimal128
 %type<tokenval> K__Decimal32 K__Decimal64 K__Generic K__Imaginary K__Noreturn
 
-%type<tokenval> struct_or_union
+%type<tokenval> P_ARROW P_INC P_DEC P_SHFL P_SHFR P_LTE P_GTE P_EE P_NE P_LAND
+%type<tokenval> P_LOR P_DCOLON P_ELLIPSIS P_STARE P_SLASHE P_PERCENTE P_PLUSE
+%type<tokenval> P_MINUSE P_SHFLE P_SHFRE P_ANDE P_CARATE P_ORE P_DHASH
+
+%type<tokenval> ',' '=' '|' '&' '*' '/' '%' '+' '-' '<' '>' '^' '!' '~'
+
+%type<tokenval> struct_or_union unary_op assignment_op
 %type<unitval> translation_unit
 %type<declval> external_declaration function_definition declaration
 %type<declval> typedef_declaration
@@ -125,13 +133,21 @@ struct id *register_type(struct id *new_type);
 %type<specval> type_specifier_qualifier function_specifier atomic_type_specifier
 %type<specval> struct_or_union_specifier enum_specifier typeof_specifier
 %type<specval> type_specifier type_qualifier alignment_specifier
-%type<speclistval> declaration_specifiers
+%type<speclistval> declaration_specifiers type_name specifier_qualifier_list
 %type<stmtval> function_body compound_statement unlabeled_statement
 %type<stmtval> primary_block label block_item expression_statement
 %type<stmtval> selection_statement iteration_statement jump_statement
 %type<stmtval> secondary_block
 %type<stmtlistval> block_item_list_opt block_item_list labeled_statement
 %type<stmtlistval> statement
+
+%type<exprval> primary_expression postfix_expression unary_expression
+%type<exprval> cast_expression multiplicative_expression additive_expression
+%type<exprval> shift_expression relational_expression equality_expression
+%type<exprval> and_expression xor_expression or_expression logical_and_expression
+%type<exprval> logical_or_expression conditional_expression assignment_expression
+%type<exprval> expression expression_opt constant_expression id_expression
+%type<exprlistval> argument_expression_list argument_expression_list_opt
 
 %%
   /* External definitions (following A.3.4) */
@@ -146,11 +162,11 @@ struct id *register_type(struct id *new_type);
   function_body: compound_statement { $$ = $1; }
 
   /* Expressions (following A.2.1) */
-  primary_expression: ID
-    | CONST
-    | STR
-    | '(' expression ')'
-    | generic_selection;
+  primary_expression: identifier { $$ = create_id_expression($1); }
+    | CONST { $$ = create_const_expression($1); }
+    | STR { $$ = create_const_expression($1); }
+    | '(' expression ')' { $$ = $2; }
+    | generic_selection { $$ = NULL; }
 
   generic_selection:
     "_Generic" '(' assignment_expression ',' generic_assoc_list ')';
@@ -161,98 +177,108 @@ struct id *register_type(struct id *new_type);
   generic_assocciation: type_name ':' assignment_expression
     | "default" ':' assignment_expression;
 
-  postfix_expression: primary_expression
-    | postfix_expression '[' expression ']'
-    | postfix_expression '(' argument_expression_list_opt ')'
-    | postfix_expression '.' ID
-    | postfix_expression "->" ID
-    | postfix_expression "++"
-    | postfix_expression "--"
-    | compound_literal;
+  postfix_expression: primary_expression { $$ = $1; }
+    | postfix_expression '[' expression ']' { $$ = create_array_index_expression($1, $3); }
+    | postfix_expression '(' argument_expression_list_opt ')' { $$ = create_call_expression($1, $3); }
+    | postfix_expression '.' id_expression { $$ = create_dot_index_expression($1, $3); }
+    | postfix_expression "->" id_expression { $$ = create_arrow_index_expression($1, $3); }
+    | postfix_expression "++" { $$ = create_postfix_expression($1, $2); }
+    | postfix_expression "--" { $$ = create_postfix_expression($1, $2); }
+    | compound_literal { $$ = NULL; };
 
-  argument_expression_list: assignment_expression
-    | argument_expression_list ',' assignment_expression;
+  argument_expression_list: assignment_expression { $$ = create_expr_list($1); }
+    | argument_expression_list ',' assignment_expression { $$ = append_expr($1, $3); }
 
   compound_literal: '(' storage_class_specifiers_opt type_name ')' braced_initializer;
 
   storage_class_specifiers: storage_class_specifier
     | storage_class_specifiers storage_class_specifier;
 
-  unary_expression: postfix_expression
-    | "++" unary_expression
-    | "--" unary_expression
-    | unary_op unary_expression
-    | "sizeof" unary_expression
-    | "sizeof" '(' type_name ')'
-    | "alignof" '(' type_name ')';
+  unary_expression: postfix_expression { $$ = $1; }
+    | "++" unary_expression { $$ = create_unary_expression($1, $2); }
+    | "--" unary_expression { $$ = create_unary_expression($1, $2); }
+    | unary_op unary_expression { $$ = create_unary_expression($1, $2); }
+    | "sizeof" unary_expression { $$ = create_unary_expression($1, $2); }
+    | "sizeof" '(' type_name ')' { $$ = create_unary_expression($1, NULL); /* FIXME */ }
+    | "alignof" '(' type_name ')' { $$ = create_unary_expression($1, NULL); /* FIXME */ }
 
-  unary_op: '&'
-    | '*'
-    | '+'
-    | '-'
-    | '~'
-    | '!';
+  unary_op: '&' { $$ = $1; }
+    | '*' { $$ = $1; }
+    | '+' { $$ = $1; }
+    | '-' { $$ = $1; }
+    | '~' { $$ = $1; }
+    | '!' { $$ = $1; }
 
-  cast_expression: unary_expression %dprec 2
-    | '(' type_name ')' cast_expression %dprec 1;
+  cast_expression: unary_expression %dprec 2 { $$ = $1; }
+    | '(' type_name ')' cast_expression %dprec 1 { $$ = create_cast_expression($2, $4); }
 
-  multiplicative_expression: cast_expression
-    | multiplicative_expression '*' cast_expression
-    | multiplicative_expression '/' cast_expression
-    | multiplicative_expression '%' cast_expression;
+  multiplicative_expression: cast_expression { $$ = $1; }
+    | multiplicative_expression '*' cast_expression { $$ = create_binary_expression($1, $2, $3); }
+    | multiplicative_expression '/' cast_expression { $$ = create_binary_expression($1, $2, $3); }
+    | multiplicative_expression '%' cast_expression { $$ = create_binary_expression($1, $2, $3); }
 
   additive_expression: multiplicative_expression
-    | additive_expression '+' multiplicative_expression
-    | additive_expression '-' multiplicative_expression;
+    | additive_expression '+' multiplicative_expression { $$ = create_binary_expression($1, $2, $3); }
+    | additive_expression '-' multiplicative_expression { $$ = create_binary_expression($1, $2, $3); }
 
-  shift_expression: additive_expression
-    | shift_expression "<<" additive_expression
-    | shift_expression ">>" additive_expression;
+  shift_expression: additive_expression  { $$ = $1; }
+    | shift_expression "<<" additive_expression { $$ = create_binary_expression($1, $2, $3); }
+    | shift_expression ">>" additive_expression { $$ = create_binary_expression($1, $2, $3); }
 
-  relational_expression: shift_expression
-    | relational_expression '<' shift_expression
-    | relational_expression '>' shift_expression
-    | relational_expression "<=" shift_expression
-    | relational_expression ">=" shift_expression;
+  relational_expression: shift_expression  { $$ = $1; }
+    | relational_expression '<' shift_expression { $$ = create_binary_expression($1, $2, $3); }
+    | relational_expression '>' shift_expression { $$ = create_binary_expression($1, $2, $3); }
+    | relational_expression "<=" shift_expression { $$ = create_binary_expression($1, $2, $3); }
+    | relational_expression ">=" shift_expression { $$ = create_binary_expression($1, $2, $3); }
 
-  equality_expression: relational_expression
-    | equality_expression "==" relational_expression
-    | equality_expression "!=" relational_expression;
+  equality_expression: relational_expression  { $$ = $1; }
+    | equality_expression "==" relational_expression{ $$ = create_binary_expression($1, $2, $3); }
+    | equality_expression "!=" relational_expression { $$ = create_binary_expression($1, $2, $3); }
 
-  and_expression: equality_expression
-    | and_expression '&' equality_expression;
+  and_expression: equality_expression  { $$ = $1; }
+    | and_expression '&' equality_expression { $$ = create_binary_expression($1, $2, $3); }
 
-  xor_expression: and_expression
-    | xor_expression '^' and_expression;
+  xor_expression: and_expression  { $$ = $1; }
+    | xor_expression '^' and_expression { $$ = create_binary_expression($1, $2, $3); }
 
-  or_expression: xor_expression
-    | or_expression '|' xor_expression;
+  or_expression: xor_expression  { $$ = $1; }
+    | or_expression '|' xor_expression { $$ = create_binary_expression($1, $2, $3); }
 
-  logical_and_expression: or_expression
-    | logical_and_expression "&&" or_expression;
+  logical_and_expression: or_expression  { $$ = $1; }
+    | logical_and_expression "&&" or_expression { $$ = create_binary_expression($1, $2, $3); }
 
-  logical_or_expression: logical_and_expression
-    | logical_or_expression "||" logical_and_expression;
+  logical_or_expression: logical_and_expression  { $$ = $1; }
+    | logical_or_expression "||" logical_and_expression { $$ = create_binary_expression($1, $2, $3); }
 
-  conditional_expression: logical_or_expression
-    | logical_or_expression '?' expression ':' conditional_expression;
+  conditional_expression: logical_or_expression  { $$ = $1; }
+    | logical_or_expression '?' expression ':' conditional_expression { $$ = create_ternary_expression($1, $3, $5); }
 
-  assignment_expression: conditional_expression
-    | unary_expression assignment_op assignment_expression;
+  assignment_expression: conditional_expression  { $$ = $1; }
+    | unary_expression assignment_op assignment_expression { $$ = create_binary_expression($1, $2, $3); }
 
-  assignment_op: '=' | "*=" | "/=" | "%=" | "+=" | "-=" | "<<=" | ">>=" | "&=" | "^=" | "|=";
+  assignment_op: '=' { $$ = $1; }
+    | "*=" { $$ = $1; }
+    | "/=" { $$ = $1; }
+    | "%=" { $$ = $1; }
+    | "+=" { $$ = $1; }
+    | "-=" { $$ = $1; }
+    | "<<=" { $$ = $1; }
+    | ">>=" { $$ = $1; }
+    | "&=" { $$ = $1; }
+    | "^=" { $$ = $1; }
+    | "|=" { $$ = $1; }
 
-  expression: assignment_expression
-    | expression ',' assignment_expression;
+  expression: assignment_expression  { $$ = $1; }
+    | expression ',' assignment_expression { $$ = create_binary_expression($1, $2, $3); }
 
-  constant_expression: conditional_expression;
+  constant_expression: conditional_expression  { $$ = $1; }
 
   /* Declarations (following A.2.2) */
-  declaration: declaration_specifiers ';' %dprec 2 { $$ = create_declaration($1, NULL); }
-    |  declaration_specifiers init_declarator_list ';' %dprec 1 { $$ = create_declaration($1, $2); }
-    |  attribute_specifier_sequence declaration_specifiers init_declarator_list ';' { $$ = create_declaration($2, $3); }
-    |  static_assert_declaration { $$ = create_declaration(NULL, NULL); }
-    |  attribute_declaration { $$ = create_declaration(NULL, NULL); }
+  declaration: declaration_specifiers ';' %dprec 2 { $$ = create_declaration($1, NULL, NULL); }
+    |  declaration_specifiers init_declarator_list ';' %dprec 1 { $$ = create_declaration($1, $2, NULL); /* FIXME */ }
+    |  attribute_specifier_sequence declaration_specifiers init_declarator_list ';' { $$ = create_declaration($2, $3, NULL); /* FIXME */ }
+    |  static_assert_declaration { $$ = create_declaration(NULL, NULL, NULL); }
+    |  attribute_declaration { $$ = create_declaration(NULL, NULL, NULL); }
     |  attribute_specifier_sequence_opt typedef_declaration { $$ = $2; }
 
   declaration_specifiers: declaration_specifier attribute_specifier_sequence_opt { $$ = create_specifier_list($1); }
@@ -319,8 +345,8 @@ struct id *register_type(struct id *new_type);
     | attribute_specifier_sequence_opt specifier_qualifier_list member_declarator_list ';' %dprec 2
     | static_assert_declaration;
 
-  specifier_qualifier_list: type_specifier_qualifier attribute_specifier_sequence_opt
-    | type_specifier_qualifier specifier_qualifier_list;
+  specifier_qualifier_list: type_specifier_qualifier attribute_specifier_sequence_opt { $$ = create_specifier_list($1); }
+    | type_specifier_qualifier specifier_qualifier_list { $$ = prepend_specifier($1, $2); }
 
   type_specifier_qualifier: type_specifier { $$ = $1; }
     | type_qualifier { $$ = $1; }
@@ -392,7 +418,7 @@ struct id *register_type(struct id *new_type);
   parameter_declaration: attribute_specifier_sequence_opt declaration_specifiers declarator %dprec 2
     | attribute_specifier_sequence_opt declaration_specifiers abstract_declarator_opt %dprec 1;
 
-  type_name: specifier_qualifier_list abstract_declarator_opt;
+  type_name: specifier_qualifier_list abstract_declarator_opt { $$ = $1; }
 
   abstract_declarator: pointer
     | pointer_opt direct_abstract_declarator;
@@ -494,8 +520,8 @@ struct id *register_type(struct id *new_type);
     | unlabeled_statement { $$ = $1; }
     | label { $$ = $1; }
 
-  expression_statement: expression_opt ';' { $$ = create_expr_stmt(); }
-    | attribute_specifier_sequence expression ';' { $$ = create_expr_stmt(); }
+  expression_statement: expression_opt ';' { $$ = create_expr_stmt($1); }
+    | attribute_specifier_sequence expression ';' { $$ = create_expr_stmt($2); }
 
   selection_statement: "if" '(' expression ')' secondary_block %dprec 1 { $$ = create_if_stmt($5, NULL); }
     | "if" '(' expression ')' secondary_block "else" secondary_block %dprec 2 { $$ = create_if_stmt($5, $7); }
@@ -509,10 +535,11 @@ struct id *register_type(struct id *new_type);
   jump_statement: "goto" identifier ';' { $$ = create_goto_stmt($2); }
     | "continue" ';' { $$ = create_continue_stmt(); }
     | "break" ';' { $$ = create_break_stmt(); }
-    | "return" expression_opt ';' { $$ = create_return_stmt(); }
+    | "return" expression_opt ';' { $$ = create_return_stmt($2); }
 
   /* The following non-terminal definitions do not appear in spec. */
   identifier: ID { $$ = create_id($1); }
+  id_expression: identifier { $$ = create_id_expression($1); }
   identifier_opt: %empty | ID;
   balanced_token_sequence_opt: %empty | balanced_token_sequence;
   attribute_argument_clause_opt: %empty | attribute_argument_clause;
@@ -526,10 +553,11 @@ struct id *register_type(struct id *new_type);
   pointer_opt: %empty | pointer;
   declarator_opt: %empty | declarator;
   enum_type_specifier_opt: %empty | enum_type_specifier;
-  argument_expression_list_opt: %empty | argument_expression_list;
+  argument_expression_list_opt: %empty { $$ = create_expr_list(NULL); }
+    | argument_expression_list { $$ = $1; }
   storage_class_specifiers_opt: %empty | storage_class_specifiers;
   attribute_specifier_sequence_opt: %empty | attribute_specifier_sequence;
-  expression_opt: %empty | expression;
+  expression_opt: %empty { $$ = NULL; } | expression { $$ = $1; }
   block_item_list_opt: %empty { $$ = NULL; }
     | block_item_list { $$ = $1; }
 

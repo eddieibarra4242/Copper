@@ -24,6 +24,24 @@ enum specifier_t {
   ID_SPEC,
 };
 
+enum expression_t {
+  ID_EXPR,
+  CONST_EXPR,
+  INDEX,
+  FUNC_CALL,
+  POSTFIX,
+  UNARY,
+  CAST,
+  BINARY,
+  TERNARY,
+};
+
+enum index_t {
+  ARRAY,
+  DOT,
+  ARROW,
+};
+
 struct id {
   Token *name;
 };
@@ -44,11 +62,15 @@ struct specifier_list {
   struct specifier *head;
 };
 
+struct expression;
+
 struct declaration {
   bool is_type_definition;
 
   struct specifier_list *specifiers;
   struct id *name;
+
+  struct expression *initializer;
 
   // only for functions
   struct statement *body;
@@ -60,6 +82,65 @@ struct declaration {
 struct declaration_list {
   struct declaration *head;
   struct declaration *tail;
+};
+
+struct expression_list;
+
+struct index_expr {
+  enum index_t type;
+
+  struct expression *object;
+  struct expression *index;
+};
+
+struct call_expr {
+  struct expression *function_ptr;
+  struct expression_list *parameter_list;
+};
+
+struct unary_expr {
+  Token *operator;
+  struct expression *base;
+};
+
+struct cast_expr {
+  struct specifier_list *type;
+  struct expression *base;
+};
+
+struct binary_expr {
+  Token *operator;
+  struct expression *left;
+  struct expression *right;
+};
+
+struct ternary_expr {
+  struct expression *condition;
+  struct expression *true_branch;
+  struct expression *false_branch;
+};
+
+struct expression {
+  enum expression_t type;
+
+  union {
+    struct id *_id;
+    Token *_constant;
+    struct index_expr _index;
+    struct call_expr _call;
+    struct unary_expr _unary;
+    struct cast_expr _cast;
+    struct binary_expr _binary;
+    struct ternary_expr _ternary;
+  };
+
+  struct expression *next;
+};
+
+struct expression_list
+{
+  struct expression *head;
+  struct expression *tail;
 };
 
 struct statement_list;
@@ -88,8 +169,7 @@ struct label {
 };
 
 struct return_statement {
-  // opt expression
-  int FIXME;
+  struct expression *ret_expr;
 };
 
 struct switch_label {
@@ -122,7 +202,7 @@ struct statement {
   union {
     struct statement_list _compound;
     struct declaration* _decl;
-    // EXPR,
+    struct expression *_expr;
     struct for_statement _for;
     struct id *_goto;
     struct if_statement _if;

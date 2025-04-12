@@ -97,6 +97,7 @@ void print_specifier_list(struct specifier_list *list) {
 }
 
 void print_statement(struct statement *stmt);
+void print_expression(struct expression *expr);
 
 void print_declaration(struct declaration *decl) {
   if (decl->body) {
@@ -117,6 +118,10 @@ void print_declaration(struct declaration *decl) {
 
   if (decl->body) {
     print_statement(decl->body);
+  }
+
+  if (decl->initializer) {
+    print_expression(decl->initializer);
   }
 
   stack--;
@@ -159,8 +164,11 @@ void print_decl_stmt(struct statement *stmt) {
 }
 
 void print_expr_stmt(struct statement *stmt) {
-  UNUSED(stmt);
   print("Expression");
+
+  stack++;
+  print_expression(stmt->_expr);
+  stack--;
 }
 
 void print_for_stmt(struct statement *stmt) {
@@ -214,6 +222,12 @@ void print_label_stmt(struct statement *stmt) {
 void print_return_stmt(struct statement *stmt) {
   UNUSED(stmt);
   print("Return");
+
+  stack++;
+  if (stmt->_return.ret_expr) {
+    print_expression(stmt->_return.ret_expr);
+  }
+  stack--;
 }
 
 void print_switch_stmt(struct statement *stmt) {
@@ -289,6 +303,210 @@ void print_statement(struct statement *stmt) {
   case WHILE:
     print_while_stmt(stmt);
     break;
+  }
+}
+
+void print_expression_list(struct expression_list *list);
+
+void print_index_expression(struct expression *expr) {
+  switch (expr->_index.type) {
+  case ARRAY:
+    print("Array index");
+    break;
+  case DOT:
+    print("Dot index");
+    break;
+  case ARROW:
+    print("Arrow index");
+    break;
+  default:
+    print("Unknown index type");
+  }
+
+  stack++;
+  if (expr->_index.object) {
+    print("Object");
+    stack++;
+    print_expression(expr->_index.object);
+    stack--;
+  }
+
+  if (expr->_index.index) {
+    print("Index");
+    stack++;
+    print_expression(expr->_index.index);
+    stack--;
+  }
+  stack--;
+}
+
+void print_func_call(struct expression *expr) {
+  print("Function call");
+
+  stack++;
+
+  if (expr->_call.function_ptr) {
+    print("Function pointer");
+    stack++;
+    print_expression(expr->_call.function_ptr);
+    stack--;
+  }
+
+  if (expr->_call.parameter_list) {
+    print("Parameter list");
+    stack++;
+    print_expression_list(expr->_call.parameter_list);
+    stack--;
+  }
+
+  stack--;
+}
+
+void print_postfix_expr(struct expression *expr) {
+  print("Postfix expression");
+
+  stack++;
+  if (expr->_unary.base) {
+    print_expression(expr->_unary.base);
+  }
+
+  if (expr->_unary.operator) {
+    print_token(expr->_unary.operator);
+  }
+  stack--;
+}
+
+void print_unary_expr(struct expression *expr) {
+  print("Unary expression");
+
+  stack++;
+  if (expr->_unary.operator) {
+    print_token(expr->_unary.operator);
+  }
+
+  if (expr->_unary.base) {
+    print_expression(expr->_unary.base);
+  }
+  stack--;
+}
+
+void print_cast_expr(struct expression *expr) {
+  print("Cast expression");
+
+  stack++;
+
+  if (expr->_cast.type) {
+    print_specifier_list(expr->_cast.type);
+  }
+
+  if (expr->_cast.base) {
+    print_expression(expr->_cast.base);
+  }
+
+  stack--;
+}
+
+void print_binary_expr(struct expression *expr) {
+  print("Binary expression");
+
+  stack++;
+
+  if (expr->_binary.left) {
+    print_expression(expr->_binary.left);
+  }
+
+  if (expr->_binary.operator) {
+    print_token(expr->_binary.operator);
+  }
+
+  if (expr->_binary.right) {
+    print_expression(expr->_binary.right);
+  }
+
+  stack--;
+}
+
+void print_ternay_expr(struct expression *expr) {
+  print("Ternary expression");
+
+  stack++;
+
+  if (expr->_ternary.condition) {
+    print_expression(expr->_ternary.condition);
+  }
+
+  if (expr->_ternary.true_branch) {
+    print_expression(expr->_ternary.true_branch);
+  }
+
+  if (expr->_ternary.false_branch) {
+    print_expression(expr->_ternary.false_branch);
+  }
+
+  stack--;
+}
+
+void print_expression(struct expression *expr) {
+  if (expr == NULL) {
+    print("(null)");
+    return;
+  }
+
+  switch (expr->type) {
+  case CONST_EXPR:
+    print("Constant");
+    stack++;
+    print_token(expr->_constant);
+    stack--;
+    break;
+  case ID_EXPR:
+    print("Id expression");
+    stack++;
+    print_id(expr->_id);
+    stack--;
+    break;
+  case INDEX:
+    print_index_expression(expr);
+    break;
+  case FUNC_CALL:
+    print_func_call(expr);
+    break;
+  case POSTFIX:
+    print_postfix_expr(expr);
+    break;
+  case UNARY:
+    print_unary_expr(expr);
+    break;
+  case CAST:
+    print_cast_expr(expr);
+    break;
+  case BINARY:
+    print_binary_expr(expr);
+    break;
+  case TERNARY:
+    print_ternay_expr(expr);
+    break;
+  default:
+    print("Unknown expression type");
+  }
+}
+
+void print_expression_list(struct expression_list *list) {
+  if (list == NULL) {
+    print("(null)");
+    return;
+  }
+
+  struct expression *cur = list->head;
+
+  if (cur == NULL) {
+    print("(empty list)");
+    return;
+  }
+
+  while (cur != NULL) {
+    print_expression(cur);
+    cur = cur->next;
   }
 }
 
