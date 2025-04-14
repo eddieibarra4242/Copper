@@ -1,5 +1,6 @@
 int collatz(int x) {
-  for (long i = 0; i < 100 && x != 1; i++) {
+  long i;
+  for (i = 0; i < 100 && x != 1; i++) {
     int isOdd = x % 2;
 
     if (isOdd) {
@@ -9,7 +10,7 @@ int collatz(int x) {
     }
   }
 
-  return x;
+  return i;
 }
 
 int main() {

@@ -3,11 +3,11 @@
 typedef struct translation_unit *AST;
 
 struct id *create_id(Token *name);
-struct declaration *
-create_declaration(struct specifier_list *specifiers, struct id *identifier);
+struct declaration *create_declaration(struct specifier_list *specifiers,
+                                       struct id *identifier);
 struct declaration *
 create_init_declaration(struct specifier_list *specifiers,
-                   struct init_declarator_list *init_declarator_list);
+                        struct init_declarator_list *init_declarator_list);
 struct declaration *create_function(struct specifier_list *specifiers,
                                     struct id *identifier,
                                     struct statement *body);
@@ -30,18 +30,28 @@ struct statement *create_compound_stmt(struct statement_list *list);
 struct statement *create_continue_stmt();
 struct statement *create_decl_stmt(struct declaration *decl);
 struct statement *create_expr_stmt(struct expression *expr);
-struct statement *create_for_stmt(struct declaration *decl,
-                                  struct statement *body);
+struct statement *create_for_stmt_with_decl(struct declaration *decl,
+                                            struct expression *condition,
+                                            struct expression *step_expression,
+                                            struct statement *body);
+struct statement *create_for_stmt_with_expr(struct expression *init,
+                                            struct expression *condition,
+                                            struct expression *step_expression,
+                                            struct statement *body);
 struct statement *create_goto_stmt(struct id *label);
-struct statement *create_if_stmt(struct statement *body,
+struct statement *create_if_stmt(struct expression *condition,
+                                 struct statement *body,
                                  struct statement *else_body);
 struct statement *create_label_stmt(struct id *name);
 struct statement *create_return_stmt(struct expression *expr);
-struct statement *create_switch_stmt(struct statement *body);
-struct statement *create_case_stmt();
+struct statement *create_switch_stmt(struct expression *condition,
+                                     struct statement *body);
+struct statement *create_case_stmt(struct expression *test);
 struct statement *create_default_stmt();
-struct statement *create_do_while_stmt(struct statement *body);
-struct statement *create_while_stmt(struct statement *body);
+struct statement *create_do_while_stmt(struct statement *body,
+                                       struct expression *condition);
+struct statement *create_while_stmt(struct expression *condition,
+                                    struct statement *body);
 
 struct statement_list *create_stmt_list(struct statement *first);
 struct statement_list *prepend_stmt(struct statement *new_stmt,
@@ -78,7 +88,8 @@ struct expression_list *append_expr(struct expression_list *list,
                                     struct expression *expr);
 
 struct initialized_declarator *
-create_initialized_declarator(struct id *declarator, struct expression *initializer);
+create_initialized_declarator(struct id *declarator,
+                              struct expression *initializer);
 struct init_declarator_list *
 create_init_declarator_list(struct initialized_declarator *first_elem);
 struct init_declarator_list *

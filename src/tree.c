@@ -218,14 +218,39 @@ struct statement *create_expr_stmt(struct expression *expr) {
   return stmt;
 }
 
-struct statement *create_for_stmt(struct declaration *decl,
-                                  struct statement *body) {
+struct statement *create_for_stmt_with_decl(struct declaration *decl,
+                                            struct expression *condition,
+                                            struct expression *step_expression,
+                                            struct statement *body) {
   struct statement *stmt = NEW(struct statement);
 
   stmt->type = FOR;
 
   stmt->_for.is_initializer_decl = decl != NULL;
   stmt->_for.decl = decl;
+  stmt->_for.preloop_expression = NULL;
+  stmt->_for.condition = condition;
+  stmt->_for.step_expression = step_expression;
+  stmt->_for.body = body;
+
+  stmt->next = NULL;
+
+  return stmt;
+}
+
+struct statement *create_for_stmt_with_expr(struct expression *init,
+                                            struct expression *condition,
+                                            struct expression *step_expression,
+                                            struct statement *body) {
+  struct statement *stmt = NEW(struct statement);
+
+  stmt->type = FOR;
+
+  stmt->_for.is_initializer_decl = false;
+  stmt->_for.decl = NULL;
+  stmt->_for.preloop_expression = init;
+  stmt->_for.condition = condition;
+  stmt->_for.step_expression = step_expression;
   stmt->_for.body = body;
 
   stmt->next = NULL;
@@ -243,11 +268,13 @@ struct statement *create_goto_stmt(struct id *label) {
   return stmt;
 }
 
-struct statement *create_if_stmt(struct statement *body,
+struct statement *create_if_stmt(struct expression *condition,
+                                 struct statement *body,
                                  struct statement *else_body) {
   struct statement *stmt = NEW(struct statement);
 
   stmt->type = IF;
+  stmt->_if.condition = condition;
   stmt->_if.body = body;
   stmt->_if.else_body = else_body;
   stmt->next = NULL;
@@ -275,20 +302,23 @@ struct statement *create_return_stmt(struct expression *expr) {
   return stmt;
 }
 
-struct statement *create_switch_stmt(struct statement *body) {
+struct statement *create_switch_stmt(struct expression *condition,
+                                     struct statement *body) {
   struct statement *stmt = NEW(struct statement);
 
   stmt->type = SWITCH;
+  stmt->_switch.condition = condition;
   stmt->_switch.body = body;
   stmt->next = NULL;
 
   return stmt;
 }
 
-struct statement *create_case_stmt() {
+struct statement *create_case_stmt(struct expression *test) {
   struct statement *stmt = NEW(struct statement);
 
   stmt->type = SWITCH_LABEL;
+  stmt->_switch_label.test = test;
   stmt->next = NULL;
 
   return stmt;
@@ -298,27 +328,32 @@ struct statement *create_default_stmt() {
   struct statement *stmt = NEW(struct statement);
 
   stmt->type = SWITCH_LABEL;
+  stmt->_switch_label.test = NULL;
   stmt->next = NULL;
 
   return stmt;
 }
 
-struct statement *create_do_while_stmt(struct statement *body) {
+struct statement *create_do_while_stmt(struct statement *body,
+                                       struct expression *condition) {
   struct statement *stmt = NEW(struct statement);
 
   stmt->type = WHILE;
   stmt->_while.should_check_condition_first = false;
+  stmt->_while.condition = condition;
   stmt->_while.body = body;
   stmt->next = NULL;
 
   return stmt;
 }
 
-struct statement *create_while_stmt(struct statement *body) {
+struct statement *create_while_stmt(struct expression *condition,
+                                    struct statement *body) {
   struct statement *stmt = NEW(struct statement);
 
   stmt->type = WHILE;
   stmt->_while.should_check_condition_first = true;
+  stmt->_while.condition = condition;
   stmt->_while.body = body;
   stmt->next = NULL;
 
@@ -658,6 +693,18 @@ void destroy_for_stmt(struct statement *stmt) {
     destroy_declaration(stmt->_for.decl);
   }
 
+  if (stmt->_for.preloop_expression) {
+    destroy_expression(stmt->_for.preloop_expression);
+  }
+
+  if (stmt->_for.condition) {
+    destroy_expression(stmt->_for.condition);
+  }
+
+  if (stmt->_for.step_expression) {
+    destroy_expression(stmt->_for.step_expression);
+  }
+
   if (stmt->_for.body) {
     destroy_statement(stmt->_for.body);
   }
@@ -671,6 +718,10 @@ void destroy_goto_stmt(struct statement *stmt) {
 }
 
 void destroy_if_stmt(struct statement *stmt) {
+  if (stmt->_if.condition) {
+    destroy_expression(stmt->_if.condition);
+  }
+
   if (stmt->_if.body) {
     destroy_statement(stmt->_if.body);
   }
@@ -696,6 +747,10 @@ void destroy_return_stmt(struct statement *stmt) {
 }
 
 void destroy_switch_stmt(struct statement *stmt) {
+  if (stmt->_switch.condition) {
+    destroy_expression(stmt->_switch.condition);
+  }
+
   if (stmt->_switch.body) {
     destroy_statement(stmt->_switch.body);
   }
@@ -703,9 +758,19 @@ void destroy_switch_stmt(struct statement *stmt) {
   free(stmt);
 }
 
-void destroy_switch_label_stmt(struct statement *stmt) { free(stmt); }
+void destroy_switch_label_stmt(struct statement *stmt) {
+  if (stmt->_switch_label.test) {
+    destroy_expression(stmt->_switch_label.test);
+  }
+
+  free(stmt);
+}
 
 void destroy_while_stmt(struct statement *stmt) {
+  if (stmt->_while.condition) {
+    destroy_expression(stmt->_while.condition);
+  }
+
   if (stmt->_while.body) {
     destroy_statement(stmt->_while.body);
   }
@@ -960,6 +1025,18 @@ void sense_for_stmt(struct statement *stmt) {
     sense_declaration(stmt->_for.decl);
   }
 
+  if (stmt->_for.preloop_expression) {
+    sense_expression(stmt->_for.preloop_expression);
+  }
+
+  if (stmt->_for.condition) {
+    sense_expression(stmt->_for.condition);
+  }
+
+  if (stmt->_for.step_expression) {
+    sense_expression(stmt->_for.step_expression);
+  }
+
   if (stmt->_for.body) {
     sense_statement(stmt->_for.body);
   }
@@ -968,6 +1045,10 @@ void sense_for_stmt(struct statement *stmt) {
 void sense_goto_stmt(struct statement *stmt) { sense_id(stmt->_goto); }
 
 void sense_if_stmt(struct statement *stmt) {
+  if (stmt->_if.condition) {
+    sense_expression(stmt->_if.condition);
+  }
+
   if (stmt->_if.body) {
     sense_statement(stmt->_if.body);
   }
@@ -980,12 +1061,20 @@ void sense_if_stmt(struct statement *stmt) {
 void sense_label_stmt(struct statement *stmt) { sense_id(stmt->_label.name); }
 
 void sense_switch_stmt(struct statement *stmt) {
+  if (stmt->_switch.condition) {
+    sense_expression(stmt->_switch.condition);
+  }
+
   if (stmt->_switch.body) {
     sense_statement(stmt->_switch.body);
   }
 }
 
 void sense_while_stmt(struct statement *stmt) {
+  if (stmt->_while.condition) {
+    sense_expression(stmt->_while.condition);
+  }
+
   if (stmt->_while.body) {
     sense_statement(stmt->_while.body);
   }
@@ -1031,6 +1120,7 @@ void sense_statement(struct statement *stmt) {
     sense_switch_stmt(stmt);
     break;
   case SWITCH_LABEL:
+    sense_expression(stmt->_switch_label.test);
     break;
   case WHILE:
     sense_while_stmt(stmt);

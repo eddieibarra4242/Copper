@@ -202,6 +202,18 @@ void print_for_stmt(struct statement *stmt) {
     print_declaration(stmt->_for.decl);
   }
 
+  if (stmt->_for.preloop_expression) {
+    print_expression(stmt->_for.preloop_expression);
+  }
+
+  if (stmt->_for.condition) {
+    print_expression(stmt->_for.condition);
+  }
+
+  if (stmt->_for.step_expression) {
+    print_expression(stmt->_for.step_expression);
+  }
+
   if (stmt->_for.body) {
     print_statement(stmt->_for.body);
   }
@@ -221,6 +233,10 @@ void print_if_stmt(struct statement *stmt) {
   print("If");
 
   stack++;
+
+  if (stmt->_if.condition) {
+    print_expression(stmt->_if.condition);
+  }
 
   if (stmt->_if.body) {
     print_statement(stmt->_if.body);
@@ -257,6 +273,10 @@ void print_switch_stmt(struct statement *stmt) {
 
   stack++;
 
+  if (stmt->_switch.condition) {
+    print_expression(stmt->_switch.condition);
+  }
+
   if (stmt->_switch.body) {
     print_statement(stmt->_switch.body);
   }
@@ -265,8 +285,13 @@ void print_switch_stmt(struct statement *stmt) {
 }
 
 void print_switch_label_stmt(struct statement *stmt) {
-  UNUSED(stmt);
   print("Switch label");
+
+  stack++;
+  if (stmt->_switch_label.test) {
+    print_expression(stmt->_switch_label.test);
+  }
+  stack--;
 }
 
 void print_while_stmt(struct statement *stmt) {
@@ -277,10 +302,13 @@ void print_while_stmt(struct statement *stmt) {
   }
 
   stack++;
+  if (stmt->_while.condition) {
+    print_expression(stmt->_while.condition);
+  }
+
   if (stmt->_while.body) {
     print_statement(stmt->_while.body);
   }
-
   stack--;
 }
 

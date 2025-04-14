@@ -163,17 +163,18 @@ struct statement;
 struct for_statement {
   bool is_initializer_decl;
 
-  // initializer
+  // For the next two fields, only one of them is set.
   struct declaration *decl;
+  struct expression *preloop_expression;
 
-  // condition
-  // mutator
+  struct expression *condition;
+  struct expression *step_expression;
 
   struct statement *body;
 };
 
 struct if_statement {
-  // condition
+  struct expression *condition;
   struct statement *body;
   struct statement *else_body;
 };
@@ -187,18 +188,17 @@ struct return_statement {
 };
 
 struct switch_label {
-  // expression
-  int FIXME;
+  struct expression *test;
 };
 
 struct switch_statement {
-  // expression
+  struct expression *condition;
   struct statement *body;
 };
 
 struct while_statement {
   bool should_check_condition_first;
-  //condition
+  struct expression *condition;
 
   struct statement *body;
 };

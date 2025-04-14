@@ -10,7 +10,7 @@ struct id *register_type(struct id *new_type);
 %}
 
 %glr-parser
-%expect 208
+%expect 215
 %expect-rr 1
 
 %union {
@@ -515,10 +515,11 @@ struct id *register_type(struct id *new_type);
     | selection_statement { $$ = $1; }
     | iteration_statement { $$ = $1; }
 
-  secondary_block: statement { $$ = create_compound_stmt($1); }
+  secondary_block: statement %dprec 1 { $$ = create_compound_stmt($1); }
+    | compound_statement %dprec 2 { $$ = $1; } // Allow compound statements to be used as blocks (FIXME: in case this is not standard compliant)
 
   label: attribute_specifier_sequence_opt identifier ':' { $$ = create_label_stmt($2); }
-    | attribute_specifier_sequence_opt "case" constant_expression ':' { $$ = create_case_stmt(); }
+    | attribute_specifier_sequence_opt "case" constant_expression ':' { $$ = create_case_stmt($3); }
     | attribute_specifier_sequence_opt "default" ':' { $$ = create_default_stmt(); }
 
   labeled_statement: label statement { $$ = prepend_stmt($1, $2); }
@@ -535,14 +536,14 @@ struct id *register_type(struct id *new_type);
   expression_statement: expression_opt ';' { $$ = create_expr_stmt($1); }
     | attribute_specifier_sequence expression ';' { $$ = create_expr_stmt($2); }
 
-  selection_statement: "if" '(' expression ')' secondary_block %dprec 1 { $$ = create_if_stmt($5, NULL); }
-    | "if" '(' expression ')' secondary_block "else" secondary_block %dprec 2 { $$ = create_if_stmt($5, $7); }
-    | "switch" '(' expression ')' secondary_block { $$ = create_switch_stmt($5); }
+  selection_statement: "if" '(' expression ')' secondary_block %dprec 1 { $$ = create_if_stmt($3, $5, NULL); }
+    | "if" '(' expression ')' secondary_block "else" secondary_block %dprec 2 { $$ = create_if_stmt($3, $5, $7); }
+    | "switch" '(' expression ')' secondary_block { $$ = create_switch_stmt($3, $5); }
 
-  iteration_statement: "while" '(' expression ')' secondary_block { $$ = create_while_stmt($5); }
-    | "do" secondary_block "while" '(' expression ')' ';' { $$ = create_do_while_stmt($2); }
-    | "for" '(' expression_opt ';' expression_opt ';' expression_opt ')' secondary_block { $$ = create_for_stmt(NULL, $9); }
-    | "for" '(' declaration expression_opt ';' expression_opt ')' secondary_block { $$ = create_for_stmt($3, $8); }
+  iteration_statement: "while" '(' expression ')' secondary_block { $$ = create_while_stmt($3, $5); }
+    | "do" secondary_block "while" '(' expression ')' ';' { $$ = create_do_while_stmt($2, $5); }
+    | "for" '(' expression_opt ';' expression_opt ';' expression_opt ')' secondary_block { $$ = create_for_stmt_with_expr($3, $5, $7, $9); }
+    | "for" '(' declaration expression_opt ';' expression_opt ')' secondary_block { $$ = create_for_stmt_with_decl($3, $4, $6, $8); }
 
   jump_statement: "goto" identifier ';' { $$ = create_goto_stmt($2); }
     | "continue" ';' { $$ = create_continue_stmt(); }
