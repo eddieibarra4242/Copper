@@ -1,172 +1,236 @@
 #pragma once
 
 #include "scanner.h"
+#include "stdbool.h"
 
-enum stmts {
-  IF,
-  RETURN,
+enum statement_t {
+  BREAK,
   COMPOUND,
+  CONTINUE,
+  DECL,
+  EXPR,
+  FOR,
+  GOTO,
+  IF,
+  LABEL,
+  RETURN,
+  SWITCH,
+  SWITCH_LABEL,
+  WHILE,
 };
 
-enum exps {
-  IDENTIFIER_EXPR,
-  CONSTANT_EXPR,
+enum specifier_t {
+  TOKEN,
+  ID_SPEC,
+};
+
+enum expression_t {
+  ID_EXPR,
+  CONST_EXPR,
+  INDEX,
+  FUNC_CALL,
   POSTFIX,
-  PREFIX,
+  UNARY,
   CAST,
   BINARY,
   TERNARY,
 };
 
-enum postfix_exps {
-  INCREMENT,
-  DECREMENT,
+enum index_t {
+  ARRAY,
   DOT,
   ARROW,
-  FUNC_CALL,
-  INDEX,
-};
-
-struct type {
-  Token *token;
 };
 
 struct id {
-  Token *token;
+  Token *name;
+};
+
+struct specifier {
+  enum specifier_t type;
+
+  union {
+    Token *_token;
+    struct id *_id;
+  };
+
+  // this is a part of a list
+  struct specifier *next;
+};
+
+struct specifier_list {
+  struct specifier *head;
 };
 
 struct expression;
 
-struct ternary_expression {
-  struct expression *cond;
-  struct expression *true_val;
-  struct expression *false_val;
+struct initialized_declarator {
+  struct id *declarator; // FIXME: replace id with declarator
+  struct expression *initializer;
+
+  // this is a part of a list
+  struct initialized_declarator *next;
 };
 
-struct binary_expression {
-  Token *op;
+struct init_declarator_list {
+  struct initialized_declarator *head;
+  struct initialized_declarator *tail;
+};
+
+struct declaration {
+  bool is_type_definition;
+
+  struct specifier_list *specifiers;
+
+  // For the next two fields, only one of them is set.
+  struct id *name;
+  struct init_declarator_list *init_declarator_list;
+
+  // only for functions
+  struct statement *body;
+
+  // this is a part of a list
+  struct declaration *next;
+};
+
+struct declaration_list {
+  struct declaration *head;
+  struct declaration *tail;
+};
+
+struct expression_list;
+
+struct index_expr {
+  enum index_t type;
+
+  struct expression *object;
+  struct expression *index;
+};
+
+struct call_expr {
+  struct expression *function_ptr;
+  struct expression_list *parameter_list;
+};
+
+struct unary_expr {
+  Token *operator;
+  struct expression *base;
+};
+
+struct cast_expr {
+  struct specifier_list *type;
+  struct expression *base;
+};
+
+struct binary_expr {
+  Token *operator;
   struct expression *left;
   struct expression *right;
 };
 
-struct cast_expression {
-  struct type *type;
-  struct expression *child;
-};
-
-struct prefix_exp {
-  Token *op;
-  struct expression *child;
-};
-
-struct postfix_exp {
-  enum postfix_exps type;
-  struct expression *child;
-
-  union {
-    struct id *attribute;
-    struct expression *index;
-  } postfix;
-};
-
-struct constant_exp {
-  Token *token;
-};
-
-struct id_exp {
-  struct id *id;
+struct ternary_expr {
+  struct expression *condition;
+  struct expression *true_branch;
+  struct expression *false_branch;
 };
 
 struct expression {
-  enum exps type;
+  enum expression_t type;
 
   union {
-    struct id_exp _id;
-    struct constant_exp _constant;
-    struct postfix_exp _postfix;
-    struct prefix_exp _prefix;
-    struct cast_expression _cast;
-    struct binary_expression _binary;
-    struct ternary_expression _ternary;
-  } exp;
+    struct id *_id;
+    Token *_constant;
+    struct index_expr _index;
+    struct call_expr _call;
+    struct unary_expr _unary;
+    struct cast_expr _cast;
+    struct binary_expr _binary;
+    struct ternary_expr _ternary;
+  };
+
+  struct expression *next;
 };
 
-struct stmt;
-
-struct else_stmt {
-  struct stmt *body;
+struct expression_list
+{
+  struct expression *head;
+  struct expression *tail;
 };
 
-struct if_stmt {
-  struct expression *condition;
-  struct stmt *body;
-  struct else_stmt *opt_else;
+struct statement_list;
+struct statement;
+
+struct for_statement {
+  bool is_initializer_decl;
+
+  // initializer
+  struct declaration *decl;
+
+  // condition
+  // mutator
+
+  struct statement *body;
 };
 
-struct return_stmt {
-  struct expression *opt_exp;
+struct if_statement {
+  // condition
+  struct statement *body;
+  struct statement *else_body;
 };
 
-struct compound_stmt {
-  struct stmt_list *list;
-};
-
-struct stmt {
-  enum stmts type;
-  struct stmt *next;
-
-  union {
-    struct if_stmt _if;
-    struct return_stmt _return;
-    struct compound_stmt _compound;
-  } stmt;
-};
-
-struct stmt_list {
-  struct stmt *head;
-  struct stmt *tail;
-};
-
-struct function {
-  struct type *return_type;
+struct label {
   struct id *name;
-  struct stmt_list *body;
 };
 
-typedef struct function *AST;
+struct return_statement {
+  struct expression *ret_expr;
+};
 
-struct type *create_type(Token *token);
-struct id *create_id(Token *token);
-struct stmt_list *create_stmt_list();
-struct function *create_function(struct type *return_type, Token *name,
-                                 struct stmt *body);
-struct else_stmt *create_else_stmt(struct stmt *stmt);
-struct stmt *create_if_stmt(struct expression *exp, struct stmt *stmt,
-                            struct else_stmt *opt_else);
-struct stmt *create_return_stmt(struct expression *opt_exp);
-struct stmt *create_compound_stmt(struct stmt_list *list);
+struct switch_label {
+  // expression
+  int FIXME;
+};
 
-struct stmt_list *append_stmt(struct stmt *stmt, struct stmt_list *list);
+struct switch_statement {
+  // expression
+  struct statement *body;
+};
 
-struct expression *create_ternary_exp(struct expression *cond,
-                                      struct expression *trueval,
-                                      struct expression *falseval);
+struct while_statement {
+  bool should_check_condition_first;
+  //condition
 
-struct expression *create_binary_exp(struct expression *left, Token *op,
-                                     struct expression *right);
+  struct statement *body;
+};
 
-struct expression *create_cast_exp(struct type *type, struct expression *child);
-struct expression *create_prefix_exp(Token *op, struct expression *child);
+struct statement;
 
-struct expression *create_postfix_exp(enum postfix_exps type,
-                                      struct expression *child);
-struct expression *create_postfix_exp_index(struct expression *child,
-                                            struct expression *index);
-struct expression *create_postfix_exp_attr(enum postfix_exps type, Token *attr,
-                                           struct expression *child);
+struct statement_list {
+  struct statement *head;
+  struct statement *tail;
+};
 
-struct expression *create_constant_exp(Token *token);
-struct expression *create_id_exp(Token *token);
+struct statement {
+  enum statement_t type;
 
-AST get_tree();
-void destroy_tree();
+  union {
+    struct statement_list _compound;
+    struct declaration* _decl;
+    struct expression *_expr;
+    struct for_statement _for;
+    struct id *_goto;
+    struct if_statement _if;
+    struct label _label;
+    struct return_statement _return;
+    struct switch_statement _switch;
+    struct switch_label _switch_label;
+    struct while_statement _while;
+  };
+
+  // this is a part of a list
+  struct statement *next;
+};
+
+struct translation_unit {
+  struct declaration_list external_declarations;
+};
