@@ -24,6 +24,8 @@ struct id *register_type(struct id *new_type);
   struct translation_unit *unitval;
   struct expression *exprval;
   struct expression_list *exprlistval;
+  struct initialized_declarator* initdeclval;
+  struct init_declarator_list* initdecllistval;
 }
 
 %token ID CONST STR TYPE_ALIAS
@@ -121,23 +123,28 @@ struct id *register_type(struct id *new_type);
 %type<tokenval> P_MINUSE P_SHFLE P_SHFRE P_ANDE P_CARATE P_ORE P_DHASH
 
 %type<tokenval> ',' '=' '|' '&' '*' '/' '%' '+' '-' '<' '>' '^' '!' '~'
-
 %type<tokenval> struct_or_union unary_op assignment_op
+
 %type<unitval> translation_unit
+
 %type<declval> external_declaration function_definition declaration
 %type<declval> typedef_declaration
-%type<idval> declarator direct_declarator array_declarator init_declarator_list
-%type<idval> init_declarator function_declarator typedef_name identifier
-%type<idval> typedef_declarator
+
+%type<idval> declarator direct_declarator array_declarator function_declarator
+%type<idval> typedef_name identifier typedef_declarator
+
 %type<specval> declaration_specifier storage_class_specifier
 %type<specval> type_specifier_qualifier function_specifier atomic_type_specifier
 %type<specval> struct_or_union_specifier enum_specifier typeof_specifier
 %type<specval> type_specifier type_qualifier alignment_specifier
+
 %type<speclistval> declaration_specifiers type_name specifier_qualifier_list
+
 %type<stmtval> function_body compound_statement unlabeled_statement
 %type<stmtval> primary_block label block_item expression_statement
 %type<stmtval> selection_statement iteration_statement jump_statement
 %type<stmtval> secondary_block
+
 %type<stmtlistval> block_item_list_opt block_item_list labeled_statement
 %type<stmtlistval> statement
 
@@ -147,7 +154,11 @@ struct id *register_type(struct id *new_type);
 %type<exprval> and_expression xor_expression or_expression logical_and_expression
 %type<exprval> logical_or_expression conditional_expression assignment_expression
 %type<exprval> expression expression_opt constant_expression id_expression
+%type<exprval> initializer
 %type<exprlistval> argument_expression_list argument_expression_list_opt
+
+%type<initdeclval> init_declarator
+%type<initdecllistval> init_declarator_list
 
 %%
   /* External definitions (following A.3.4) */
@@ -274,11 +285,11 @@ struct id *register_type(struct id *new_type);
   constant_expression: conditional_expression  { $$ = $1; }
 
   /* Declarations (following A.2.2) */
-  declaration: declaration_specifiers ';' %dprec 2 { $$ = create_declaration($1, NULL, NULL); }
-    |  declaration_specifiers init_declarator_list ';' %dprec 1 { $$ = create_declaration($1, $2, NULL); /* FIXME */ }
-    |  attribute_specifier_sequence declaration_specifiers init_declarator_list ';' { $$ = create_declaration($2, $3, NULL); /* FIXME */ }
-    |  static_assert_declaration { $$ = create_declaration(NULL, NULL, NULL); }
-    |  attribute_declaration { $$ = create_declaration(NULL, NULL, NULL); }
+  declaration: declaration_specifiers ';' %dprec 2 { $$ = create_declaration($1, NULL); }
+    |  declaration_specifiers init_declarator_list ';' %dprec 1 { $$ = create_init_declaration($1, $2); }
+    |  attribute_specifier_sequence declaration_specifiers init_declarator_list ';' { $$ = create_init_declaration($2, $3); }
+    |  static_assert_declaration { $$ = create_declaration(NULL, NULL); }
+    |  attribute_declaration { $$ = create_declaration(NULL, NULL); }
     |  attribute_specifier_sequence_opt typedef_declaration { $$ = $2; }
 
   declaration_specifiers: declaration_specifier attribute_specifier_sequence_opt { $$ = create_specifier_list($1); }
@@ -288,11 +299,11 @@ struct id *register_type(struct id *new_type);
     | type_specifier_qualifier { $$ = $1; }
     | function_specifier { $$ = $1; }
 
-  init_declarator_list: init_declarator { $$ = $1; }
-    | init_declarator_list ',' init_declarator { $$ = $3; }
+  init_declarator_list: init_declarator { $$ = create_init_declarator_list($1); }
+    | init_declarator_list ',' init_declarator { $$ = append_initialized_declarator($1, $3); }
 
-  init_declarator: declarator { $$ = $1; }
-    | declarator '=' initializer { $$ = $1; }
+  init_declarator: declarator { $$ = create_initialized_declarator($1, NULL); }
+    | declarator '=' initializer { $$ = create_initialized_declarator($1, $3); }
 
   attribute_declaration: attribute_specifier_sequence ';';
 
@@ -444,7 +455,8 @@ struct id *register_type(struct id *new_type);
     | '{' initializer_list '}'
     | '{' initializer_list ',' '}';
 
-  initializer: assignment_expression | braced_initializer;
+  initializer: assignment_expression { $$ = $1; }
+    | braced_initializer { $$ = NULL; }
 
   initializer_list_member: designation_opt initializer;
   initializer_list: initializer_list_member

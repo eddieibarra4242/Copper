@@ -38,14 +38,28 @@ struct id *create_id(Token *name) {
 }
 
 struct declaration *create_declaration(struct specifier_list *specifiers,
-                                       struct id *identifier,
-                                       struct expression *initializer) {
+                                       struct id *identifier) {
   struct declaration *decl = NEW(struct declaration);
 
   decl->is_type_definition = false;
   decl->specifiers = specifiers;
   decl->name = identifier;
-  decl->initializer = initializer;
+  decl->init_declarator_list = NULL;
+  decl->body = NULL;
+  decl->next = NULL;
+
+  return decl;
+}
+
+struct declaration *
+create_init_declaration(struct specifier_list *specifiers,
+                        struct init_declarator_list *init_declarator_list) {
+  struct declaration *decl = NEW(struct declaration);
+
+  decl->is_type_definition = false;
+  decl->specifiers = specifiers;
+  decl->name = NULL;
+  decl->init_declarator_list = init_declarator_list;
   decl->body = NULL;
   decl->next = NULL;
 
@@ -60,7 +74,7 @@ struct declaration *create_function(struct specifier_list *specifiers,
   decl->is_type_definition = false;
   decl->specifiers = specifiers;
   decl->name = identifier;
-  decl->initializer = NULL;
+  decl->init_declarator_list = NULL;
   decl->body = body;
   decl->next = NULL;
 
@@ -74,7 +88,7 @@ struct declaration *create_type_definition(struct specifier_list *specifiers,
   decl->is_type_definition = true;
   decl->specifiers = specifiers;
   decl->name = identifier;
-  decl->initializer = NULL;
+  decl->init_declarator_list = NULL;
   decl->body = NULL;
   decl->next = NULL;
 
@@ -504,9 +518,47 @@ struct expression_list *append_expr(struct expression_list *list,
   return list;
 }
 
+struct initialized_declarator *
+create_initialized_declarator(struct id *declarator,
+                              struct expression *initializer) {
+  struct initialized_declarator *decl = NEW(struct initialized_declarator);
+
+  decl->declarator = declarator;
+  decl->initializer = initializer;
+  decl->next = NULL;
+
+  return decl;
+}
+
+struct init_declarator_list *
+create_init_declarator_list(struct initialized_declarator *first_elem) {
+  struct init_declarator_list *list = NEW(struct init_declarator_list);
+
+  list->head = first_elem;
+  list->tail = first_elem;
+
+  return list;
+}
+
+struct init_declarator_list *
+append_initialized_declarator(struct init_declarator_list *list,
+                              struct initialized_declarator *new_elem) {
+  if (list->head == NULL)
+    list->head = new_elem;
+
+  if (list->tail)
+    list->tail->next = new_elem;
+
+  list->tail = new_elem;
+  return list;
+}
+
 // Destroying functions
 
-void destroy_id(struct id *id) { free(id); }
+void destroy_id(struct id *id) {
+  if (id)
+    free(id);
+}
 
 void destroy_specifier(struct specifier *specifier) {
   switch (specifier->type) {
@@ -536,12 +588,34 @@ void destroy_specifiers(struct specifier_list *list) {
 void destroy_statement(struct statement *stmt);
 void destroy_expression(struct expression *expr);
 
+void destory_initialized_declarator(struct initialized_declarator *decl) {
+  destroy_id(decl->declarator);
+
+  if (decl->initializer)
+    destroy_expression(decl->initializer);
+
+  free(decl);
+}
+
+void destory_init_declarator_list(struct init_declarator_list *list) {
+  struct initialized_declarator *cur = list->head;
+  struct initialized_declarator *next = NULL;
+
+  while (cur) {
+    next = cur->next;
+    destory_initialized_declarator(cur);
+    cur = next;
+  }
+
+  free(list);
+}
+
 void destroy_declaration(struct declaration *decl) {
   destroy_specifiers(decl->specifiers);
   destroy_id(decl->name);
 
-  if (decl->initializer)
-    destroy_expression(decl->initializer);
+  if (decl->init_declarator_list)
+    destory_init_declarator_list(decl->init_declarator_list);
 
   if (decl->body)
     destroy_statement(decl->body);
@@ -804,7 +878,10 @@ void delete_allocation_entry(void *address) {
   }
 }
 
-void sense_id(struct id *id) { delete_allocation_entry(id); }
+void sense_id(struct id *id) {
+  if (id)
+    delete_allocation_entry(id);
+}
 
 void sense_specifier(struct specifier *specifier) {
   switch (specifier->type) {
@@ -834,12 +911,34 @@ void sense_specifiers(struct specifier_list *list) {
 void sense_statement(struct statement *stmt);
 void sense_expression(struct expression *expr);
 
+void sense_initialized_declarator(struct initialized_declarator *decl) {
+  sense_id(decl->declarator);
+
+  if (decl->initializer)
+    sense_expression(decl->initializer);
+
+  delete_allocation_entry(decl);
+}
+
+void sense_init_declarator_list(struct init_declarator_list *list) {
+  struct initialized_declarator *cur = list->head;
+  struct initialized_declarator *next = NULL;
+
+  while (cur) {
+    next = cur->next;
+    sense_initialized_declarator(cur);
+    cur = next;
+  }
+
+  delete_allocation_entry(list);
+}
+
 void sense_declaration(struct declaration *decl) {
   sense_specifiers(decl->specifiers);
   sense_id(decl->name);
 
-  if (decl->initializer)
-    sense_expression(decl->initializer);
+  if (decl->init_declarator_list)
+    sense_init_declarator_list(decl->init_declarator_list);
 
   if (decl->body)
     sense_statement(decl->body);

@@ -64,13 +64,27 @@ struct specifier_list {
 
 struct expression;
 
+struct initialized_declarator {
+  struct id *declarator; // FIXME: replace id with declarator
+  struct expression *initializer;
+
+  // this is a part of a list
+  struct initialized_declarator *next;
+};
+
+struct init_declarator_list {
+  struct initialized_declarator *head;
+  struct initialized_declarator *tail;
+};
+
 struct declaration {
   bool is_type_definition;
 
   struct specifier_list *specifiers;
-  struct id *name;
 
-  struct expression *initializer;
+  // For the next two fields, only one of them is set.
+  struct id *name;
+  struct init_declarator_list *init_declarator_list;
 
   // only for functions
   struct statement *body;

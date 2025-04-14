@@ -99,6 +99,28 @@ void print_specifier_list(struct specifier_list *list) {
 void print_statement(struct statement *stmt);
 void print_expression(struct expression *expr);
 
+void print_initialized_declarator(struct initialized_declarator *decl) {
+  print("Initialized declarator");
+
+  stack++;
+  print_id(decl->declarator);
+
+  if (decl->initializer)
+    print_expression(decl->initializer);
+  stack--;
+}
+
+void print_init_declarator_list(struct init_declarator_list *list) {
+  print("Init declarator list");
+
+  stack++;
+  for (struct initialized_declarator *cur = list->head; cur != NULL;
+       cur = cur->next) {
+    print_initialized_declarator(cur);
+  }
+  stack--;
+}
+
 void print_declaration(struct declaration *decl) {
   if (decl->body) {
     print("Function");
@@ -120,8 +142,8 @@ void print_declaration(struct declaration *decl) {
     print_statement(decl->body);
   }
 
-  if (decl->initializer) {
-    print_expression(decl->initializer);
+  if (decl->init_declarator_list) {
+    print_init_declarator_list(decl->init_declarator_list);
   }
 
   stack--;

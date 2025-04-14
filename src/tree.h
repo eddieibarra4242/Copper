@@ -3,9 +3,11 @@
 typedef struct translation_unit *AST;
 
 struct id *create_id(Token *name);
-struct declaration *create_declaration(struct specifier_list *specifiers,
-                                       struct id *identifier,
-                                       struct expression *initializer);
+struct declaration *
+create_declaration(struct specifier_list *specifiers, struct id *identifier);
+struct declaration *
+create_init_declaration(struct specifier_list *specifiers,
+                   struct init_declarator_list *init_declarator_list);
 struct declaration *create_function(struct specifier_list *specifiers,
                                     struct id *identifier,
                                     struct statement *body);
@@ -74,6 +76,14 @@ struct expression *create_ternary_expression(struct expression *condition,
 struct expression_list *create_expr_list(struct expression *first_elem);
 struct expression_list *append_expr(struct expression_list *list,
                                     struct expression *expr);
+
+struct initialized_declarator *
+create_initialized_declarator(struct id *declarator, struct expression *initializer);
+struct init_declarator_list *
+create_init_declarator_list(struct initialized_declarator *first_elem);
+struct init_declarator_list *
+append_initialized_declarator(struct init_declarator_list *list,
+                              struct initialized_declarator *new_elem);
 
 AST get_tree();
 void free_unused_parse_branches();
