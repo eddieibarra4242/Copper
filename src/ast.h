@@ -109,6 +109,9 @@ struct index_expr {
 
 struct call_expr {
   struct expression *function_ptr;
+
+  // After semantic analysis, this list will include the function pointer and
+  // be sorted in evaluation order. Unless the list was null to begin with.
   struct expression_list *parameter_list;
 };
 
@@ -147,6 +150,10 @@ struct expression {
     struct binary_expr _binary;
     struct ternary_expr _ternary;
   };
+
+  // register number
+  uint64_t reg;
+  size_t reg_count;
 
   struct expression *next;
 };

@@ -9,7 +9,7 @@ LINK_FLAGS = -L../bin
 CFLAGS += -ggdb
 LINK_FLAGS += -ggdb
 
-# Debug generated Bison parser.
+# Turn on debug prints in auto-generated Bison parser.
 # CFLAGS += -DYYDEBUG=1
 
 # CFLAGS += -O2 -DNDEBUG
@@ -17,7 +17,7 @@ LINK_FLAGS += -ggdb
 
 OUTPUT_NAME = cu
 
-OBJ_FILES = main.o log.o scanner.o parser.o tree.o debug_ast.o
+OBJ_FILES = main.o log.o scanner.o parser.o tree.o debug_ast.o assign.o utils.o
 
 all: mkdirs $(OBJ_FILES)
 	$(CC) $(OBJ_FILES:%=../bin/int/%) -o ../bin/$(OUTPUT_NAME) $(LINK_FLAGS)

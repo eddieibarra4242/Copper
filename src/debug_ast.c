@@ -258,7 +258,6 @@ void print_label_stmt(struct statement *stmt) {
 }
 
 void print_return_stmt(struct statement *stmt) {
-  UNUSED(stmt);
   print("Return");
 
   stack++;
@@ -539,6 +538,9 @@ void print_expression(struct expression *expr) {
   default:
     print("Unknown expression type");
   }
+
+  print("Register: r%lu", expr->reg);
+  print("Register count: %zu", expr->reg_count);
 }
 
 void print_expression_list(struct expression_list *list) {

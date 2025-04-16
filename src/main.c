@@ -6,6 +6,7 @@
 #include "parser.h"
 #include "scanner.h"
 #include "tree.h"
+#include "assign.h"
 
 int main(int args, char **argv) {
   if (args < 2) {
@@ -66,6 +67,8 @@ int main(int args, char **argv) {
 
   free_type_alias_memory();
   free_unused_parse_branches();
+
+  assign_registers();
 
 #ifndef NDEBUG
   print_ast();
