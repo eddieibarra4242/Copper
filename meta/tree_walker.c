@@ -82,11 +82,15 @@ void declaration_list(struct declaration_list *list) {
 
 void break_stmt(struct statement *stmt) { UNUSED(stmt); }
 
-void compound_stmt(struct statement *stmt) {
-  for (struct statement *child = stmt->_compound.head; child != NULL;
+void statement_list(struct statement_list *list) {
+  for (struct statement *child = list->head; child != NULL;
        child = child->next) {
     statement(child);
   }
+}
+
+void compound_stmt(struct statement *stmt) {
+  statement_list(stmt->_compound.statements);
 }
 
 void continue_stmt(struct statement *stmt) { UNUSED(stmt); }
@@ -223,8 +227,7 @@ void constant_expr(struct expression *expr) {
 }
 
 void id_expression(struct expression *expr) {
-  UNUSED(expr);
-  // expr->_id
+  id(expr->_id);
 }
 
 void index_expression(struct expression *expr) {

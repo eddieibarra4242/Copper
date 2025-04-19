@@ -3,6 +3,8 @@
 #include "scanner.h"
 #include "stdbool.h"
 
+#include "symbol.h"
+
 enum statement_t {
   BREAK,
   COMPOUND,
@@ -44,6 +46,7 @@ enum index_t {
 
 struct id {
   Token *name;
+  struct symbol *symbol;
 };
 
 struct specifier {
@@ -88,6 +91,7 @@ struct declaration {
 
   // only for functions
   struct statement *body;
+  struct scope *parameter_scope;
 
   // this is a part of a list
   struct declaration *next;
@@ -167,6 +171,11 @@ struct expression_list
 struct statement_list;
 struct statement;
 
+struct compound_statement {
+  struct statement_list *statements;
+  struct scope *local_scope;
+};
+
 struct for_statement {
   bool is_initializer_decl;
 
@@ -210,8 +219,6 @@ struct while_statement {
   struct statement *body;
 };
 
-struct statement;
-
 struct statement_list {
   struct statement *head;
   struct statement *tail;
@@ -221,7 +228,7 @@ struct statement {
   enum statement_t type;
 
   union {
-    struct statement_list _compound;
+    struct compound_statement _compound;
     struct declaration* _decl;
     struct expression *_expr;
     struct for_statement _for;
@@ -240,4 +247,5 @@ struct statement {
 
 struct translation_unit {
   struct declaration_list external_declarations;
+  struct scope *global_scope;
 };

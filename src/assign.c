@@ -117,11 +117,15 @@ void declaration_list(struct declaration_list *list) {
 
 void break_stmt(struct statement *stmt) { UNUSED(stmt); }
 
-void compound_stmt(struct statement *stmt) {
-  for (struct statement *child = stmt->_compound.head; child != NULL;
+void statement_list(struct statement_list *list) {
+  for (struct statement *child = list->head; child != NULL;
        child = child->next) {
     statement(child);
   }
+}
+
+void compound_stmt(struct statement *stmt) {
+  statement_list(stmt->_compound.statements);
 }
 
 void continue_stmt(struct statement *stmt) { UNUSED(stmt); }
@@ -260,7 +264,10 @@ struct sized_array count_expression_list(struct expression_list *list);
 
 void count_constant_expr(struct expression *expr) { expr->reg_count = 1; }
 
-void count_id_expression(struct expression *expr) { expr->reg_count = 1; }
+void count_id_expression(struct expression *expr) {
+  id(expr->_id);
+  expr->reg_count = 1;
+}
 
 void count_index_expression(struct expression *expr) {
   if (expr->_index.object) {

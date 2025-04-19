@@ -7,6 +7,7 @@
 #include "scanner.h"
 #include "tree.h"
 #include "assign.h"
+#include "symbol.h"
 
 int main(int args, char **argv) {
   if (args < 2) {
@@ -68,6 +69,7 @@ int main(int args, char **argv) {
   free_type_alias_memory();
   free_unused_parse_branches();
 
+  link_symbols();
   assign_registers();
 
 #ifndef NDEBUG

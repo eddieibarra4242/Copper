@@ -60,6 +60,7 @@ void print_id(struct id *id) {
 
   stack++;
   print_token(id->name);
+  print("Symbol: %p", id->symbol);
   stack--;
 }
 
@@ -142,6 +143,10 @@ void print_declaration(struct declaration *decl) {
     print_statement(decl->body);
   }
 
+  if (decl->parameter_scope) {
+    print("Parameter scope: %p", decl->parameter_scope);
+  }
+
   if (decl->init_declarator_list) {
     print_init_declarator_list(decl->init_declarator_list);
   }
@@ -161,14 +166,18 @@ void print_break_stmt(struct statement *stmt) {
   print("Break");
 }
 
+void print_statement_list(struct statement_list *list) {
+  for (struct statement *child = list->head; child != NULL; child = child->next) {
+    print_statement(child);
+  }
+}
+
 void print_compound_stmt(struct statement *stmt) {
   print("Compound statement");
 
   stack++;
-  for (struct statement *child = stmt->_compound.head; child != NULL;
-       child = child->next) {
-    print_statement(child);
-  }
+  print_statement_list(stmt->_compound.statements);
+  print("Local scope: %p", stmt->_compound.local_scope);
   stack--;
 }
 
@@ -567,5 +576,6 @@ void print_translation_unit(struct translation_unit *unit) {
 
   stack++;
   print_declaration_list(&unit->external_declarations);
+  print("Global scope: %p", unit->global_scope);
   stack--;
 }

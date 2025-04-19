@@ -174,16 +174,8 @@ struct statement *create_compound_stmt(struct statement_list *list) {
   struct statement *stmt = NEW(struct statement);
 
   stmt->type = COMPOUND;
-
-  if (list) {
-    stmt->_compound.head = list->head;
-    stmt->_compound.tail = list->tail;
-    // Garbage collector will clean up the leaked list.
-  } else {
-    stmt->_compound.head = NULL;
-    stmt->_compound.tail = NULL;
-  }
-
+  stmt->_compound.statements = list;
+  stmt->_compound.local_scope = NULL;
   stmt->next = NULL;
 
   return stmt;
@@ -655,13 +647,16 @@ void destroy_declaration(struct declaration *decl) {
   if (decl->body)
     destroy_statement(decl->body);
 
+  if (decl->parameter_scope)
+    destroy_scope(decl->parameter_scope);
+
   free(decl);
 }
 
 void destroy_break_stmt(struct statement *stmt) { free(stmt); }
 
-void destroy_compound_stmt(struct statement *stmt) {
-  struct statement *cur = stmt->_compound.head;
+void destroy_statement_list(struct statement_list *list) {
+  struct statement *cur = list->head;
   struct statement *next = NULL;
 
   while (cur != NULL) {
@@ -670,6 +665,12 @@ void destroy_compound_stmt(struct statement *stmt) {
     cur = next;
   }
 
+  free(list);
+}
+
+void destroy_compound_stmt(struct statement *stmt) {
+  destroy_statement_list(stmt->_compound.statements);
+  destroy_scope(stmt->_compound.local_scope);
   free(stmt);
 }
 
@@ -920,6 +921,7 @@ void destroy_translation_unit(struct translation_unit *unit) {
     cur = next;
   }
 
+  destroy_scope(unit->global_scope);
   free(unit);
 }
 
@@ -1011,11 +1013,16 @@ void sense_declaration(struct declaration *decl) {
   delete_allocation_entry(decl);
 }
 
-void sense_compound_stmt(struct statement *stmt) {
-  for (struct statement *child = stmt->_compound.head; child != NULL;
-       child = child->next) {
+void sense_statement_list(struct statement_list *list) {
+  for (struct statement *child = list->head; child != NULL; child = child->next) {
     sense_statement(child);
   }
+
+  delete_allocation_entry(list);
+}
+
+void sense_compound_stmt(struct statement *stmt) {
+  sense_statement_list(stmt->_compound.statements);
 }
 
 void sense_decl_stmt(struct statement *stmt) { sense_declaration(stmt->_decl); }
