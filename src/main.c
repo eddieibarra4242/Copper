@@ -8,6 +8,8 @@
 #include "tree.h"
 #include "assign.h"
 #include "symbol.h"
+#include "emit.h"
+#include "debug_insn.h"
 
 int main(int args, char **argv) {
   if (args < 2) {
@@ -76,6 +78,16 @@ int main(int args, char **argv) {
   print_ast();
 #endif
 
+  InstructionList *ir_insns = emit_intermediate_representation();
+  if (ir_insns == NULL) {
+    CRITICAL("emit", "Failed to emit intermediate representation!");
+  }
+
+#ifndef NDEBUG
+  debug_insns(ir_insns);
+#endif
+
+  destroy_instruction_list(ir_insns);
   destroy_ast();
   free_list(tokens);
 

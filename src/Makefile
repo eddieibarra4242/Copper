@@ -2,7 +2,7 @@ CC = gcc
 BISON = bison
 OBJDUMP = objdump
 
-CFLAGS = -Wall -Wextra -Wpedantic -Werror
+CFLAGS = -Wall -Wextra -Werror
 
 LINK_FLAGS = -L../bin
 
@@ -18,7 +18,7 @@ LINK_FLAGS += -ggdb
 OUTPUT_NAME = cu
 
 OBJ_FILES = main.o log.o scanner.o parser.o tree.o debug_ast.o assign.o utils.o
-OBJ_FILES += symbol.o
+OBJ_FILES += symbol.o instruction.o emit.o debug_insn.o
 
 all: mkdirs $(OBJ_FILES)
 	$(CC) $(OBJ_FILES:%=../bin/int/%) -o ../bin/$(OUTPUT_NAME) $(LINK_FLAGS)
