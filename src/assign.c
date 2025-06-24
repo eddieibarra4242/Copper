@@ -118,6 +118,9 @@ void declaration_list(struct declaration_list *list) {
 void break_stmt(struct statement *stmt) { UNUSED(stmt); }
 
 void statement_list(struct statement_list *list) {
+  if (list == NULL)
+    return;
+
   for (struct statement *child = list->head; child != NULL;
        child = child->next) {
     statement(child);

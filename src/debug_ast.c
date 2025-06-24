@@ -167,6 +167,9 @@ void print_break_stmt(struct statement *stmt) {
 }
 
 void print_statement_list(struct statement_list *list) {
+  if (list == NULL)
+    return;
+
   for (struct statement *child = list->head; child != NULL; child = child->next) {
     print_statement(child);
   }

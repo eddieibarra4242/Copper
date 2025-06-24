@@ -656,6 +656,9 @@ void destroy_declaration(struct declaration *decl) {
 void destroy_break_stmt(struct statement *stmt) { free(stmt); }
 
 void destroy_statement_list(struct statement_list *list) {
+  if (list == NULL)
+    return;
+
   struct statement *cur = list->head;
   struct statement *next = NULL;
 
@@ -1014,6 +1017,9 @@ void sense_declaration(struct declaration *decl) {
 }
 
 void sense_statement_list(struct statement_list *list) {
+  if (list == NULL)
+    return;
+
   for (struct statement *child = list->head; child != NULL; child = child->next) {
     sense_statement(child);
   }
