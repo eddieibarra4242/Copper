@@ -88,6 +88,7 @@ int main(int args, char **argv) {
 #endif
 
   destroy_instruction_list(ir_insns);
+  free_generated_labels();
   destroy_ast();
   free_list(tokens);
 

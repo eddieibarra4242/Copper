@@ -23,7 +23,7 @@ void debug_operand(char *str, Operand *op) {
       snprintf(str, 256, "mem[0x%lx]", op->value.mem_addr);
       break;
     case OPERAND_CONSTANT:
-      snprintf(str, 256, "%lu", op->value.constant);
+      snprintf(str, 256, "%ld", op->value.constant);
       break;
     case OPERAND_LABEL:
       snprintf(str, 256, "%s", op->value.label);
@@ -52,6 +52,10 @@ void debug_instruction(Instruction *insn) {
     case BITWISE_OR: op_code = "or"; break;
     case BITWISE_XOR: op_code = "eor"; break;
     case BITWISE_NOT: op_code = "not"; break;
+    case LOGICAL_AND: op_code = "land"; break;
+    case LOGICAL_OR: op_code = "lor"; break;
+    case LOGICAL_NOT: op_code = "lnot"; break;
+    case LOGICAL_XOR: op_code = "lxor"; break;
     case LEFT_SHIFT: op_code = "shl"; break;
     case RIGHT_SHIFT: op_code = "shr"; break;
     case EQUAL: op_code = "eq"; break;
@@ -61,8 +65,8 @@ void debug_instruction(Instruction *insn) {
     case LESS_EQUAL: op_code = "leq"; break;
     case GREATER_EQUAL: op_code = "geq"; break;
     case JUMP: op_code = "jmp"; break;
-    case JUMP_IF_TRUE: op_code = "jt"; break;
-    case JUMP_IF_FALSE: op_code = "jf"; break;
+    case JUMP_NOT_ZERO: op_code = "jnz"; break;
+    case JUMP_EQU_ZERO: op_code = "jez"; break;
     case CALL: op_code = "call"; break;
     case IRETURN: op_code = "ret"; break;
     case LOAD: op_code = "l"; break;

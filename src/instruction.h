@@ -22,6 +22,12 @@ enum InstructionSet
   LEFT_SHIFT,   // Left shift
   RIGHT_SHIFT,  // Right shift
 
+  // Logical operations
+  LOGICAL_AND,  // Logical AND
+  LOGICAL_OR,   // Logical OR
+  LOGICAL_NOT,  // Logical NOT
+  LOGICAL_XOR,  // Logical XOR
+
   // Comparison operations
   EQUAL,        // Equal to
   NOT_EQUAL,   // Not equal to
@@ -32,8 +38,8 @@ enum InstructionSet
 
   // Control flow operations
   JUMP,        // Unconditional jump
-  JUMP_IF_TRUE,// Conditional jump if true
-  JUMP_IF_FALSE,// Conditional jump if false
+  JUMP_NOT_ZERO,// Conditional jump if true
+  JUMP_EQU_ZERO,// Conditional jump if false
 
   // Function calls and returns
   CALL,        // Call function
@@ -65,7 +71,7 @@ typedef struct Operand {
     uint64_t constant;
     // Label name (if type is LABEL)
     // Note: Label names are typically strings, but here we use a fixed-size char array for simplicity
-    char label[128];
+    const char *label;
   } value;
 } Operand;
 
