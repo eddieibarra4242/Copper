@@ -229,18 +229,25 @@ void emit_for_stmt(struct statement *stmt) {
 
 void emit_goto_stmt(struct statement *stmt) { emit_id(stmt->_goto); }
 
-void emit_if_stmt(struct statement *stmt) {
-  if (stmt->_if.condition) {
-    emit_rval_expression(stmt->_if.condition);
+InstructionList *emit_if_stmt(struct statement *stmt) {
+  const char *label_else = generate_label("else");
+  const char *label_end = generate_label("end_if");
+
+  bool has_else = stmt->_if.else_body != NULL;
+
+  InstructionList *insns = emit_control_flow(stmt->_if.condition, false, has_else ? label_else : label_end);
+
+  APPEND_LIST(insns, emit_statement(stmt->_if.body));
+
+  if (has_else) {
+    append_instruction(insns, JUMP, OP_LABEL(label_end), OP_NONE, OP_NONE);
+    append_instruction(insns, ILABEL, OP_LABEL(label_else), OP_NONE, OP_NONE);
+    APPEND_LIST(insns, emit_statement(stmt->_if.else_body));
   }
 
-  if (stmt->_if.body) {
-    emit_statement(stmt->_if.body);
-  }
+  append_instruction(insns, ILABEL, OP_LABEL(label_end), OP_NONE, OP_NONE);
 
-  if (stmt->_if.else_body) {
-    emit_statement(stmt->_if.else_body);
-  }
+  return insns;
 }
 
 void emit_label_stmt(struct statement *stmt) { emit_id(stmt->_label.name); }
@@ -307,8 +314,7 @@ InstructionList *emit_statement(struct statement *stmt) {
     emit_goto_stmt(stmt);
     break;
   case IF:
-    emit_if_stmt(stmt);
-    break;
+    return emit_if_stmt(stmt);
   case LABEL:
     emit_label_stmt(stmt);
     break;
