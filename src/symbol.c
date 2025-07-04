@@ -54,7 +54,7 @@ struct symbol *find_symbol(Token *name) {
 
     while (symbol != NULL) {
       if (strcmp(symbol->name, name->data) == 0) {
-         // Found the symbol
+        // Found the symbol
         return symbol;
       }
 
@@ -80,8 +80,10 @@ void symbol_id(struct id *id) {
 
   if (symbol == NULL) {
     // todo: accumulate errors
-    ERRORV("assign", "Cannot find declaration for symbol '%s' (seen on line %zu:%zu)", id->name->data,
-           id->name->span.start.line_number, id->name->span.start.column);
+    ERRORV("assign",
+           "Cannot find declaration for symbol '%s' (seen on line %zu:%zu)",
+           id->name->data, id->name->span.start.line_number,
+           id->name->span.start.column);
   }
 
   id->symbol = symbol;
@@ -92,7 +94,9 @@ void symbol_token_specifier(struct specifier *specifier) {
   // specifier->_token
 }
 
-void symbol_id_specifier(struct specifier *specifier) { symbol_id(specifier->_id); }
+void symbol_id_specifier(struct specifier *specifier) {
+  symbol_id(specifier->_id);
+}
 
 void symbol_specifier(struct specifier *specifier) {
   switch (specifier->type) {
@@ -320,9 +324,7 @@ void symbol_constant_expr(struct expression *expr) {
   // expr->_constant
 }
 
-void symbol_id_expression(struct expression *expr) {
-  symbol_id(expr->_id);
-}
+void symbol_id_expression(struct expression *expr) { symbol_id(expr->_id); }
 
 void symbol_index_expression(struct expression *expr) {
   if (expr->_index.object) {
@@ -382,7 +384,7 @@ void symbol_binary_expr(struct expression *expr) {
   }
 }
 
-void symbol_ternay_expr(struct expression *expr) {
+void symbol_ternary_expr(struct expression *expr) {
   if (expr->_ternary.condition) {
     symbol_expression(expr->_ternary.condition);
   }
@@ -427,7 +429,7 @@ void symbol_expression(struct expression *expr) {
     symbol_binary_expr(expr);
     break;
   case TERNARY:
-    symbol_ternay_expr(expr);
+    symbol_ternary_expr(expr);
     break;
   default:
     CRITICAL("assign", "Unknown expression type");

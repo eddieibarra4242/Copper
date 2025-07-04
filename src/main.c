@@ -10,6 +10,7 @@
 #include "symbol.h"
 #include "emit.h"
 #include "debug_insn.h"
+#include "transforms.h"
 
 int main(int args, char **argv) {
   if (args < 2) {
@@ -72,6 +73,9 @@ int main(int args, char **argv) {
   free_unused_parse_branches();
 
   link_symbols();
+  
+  // After semantic analysis 
+  transform_ast();
   assign_registers();
 
 #ifndef NDEBUG

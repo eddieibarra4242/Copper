@@ -1,4 +1,8 @@
 #include "utils.h"
+#include "log.h"
+
+#include <errno.h>
+#include <string.h>
 
 void swap(uint64_t *array, size_t a, size_t b) {
   uint64_t temp = array[a];
@@ -44,4 +48,28 @@ void heap_sort(uint64_t *array, size_t nelements) {
     swap(array, i, 0);
     sink(array, i, 0);
   }
+}
+
+Constant eval_token(Token *token) {
+  Constant constant;
+
+  if (strcmp(token->data, "false") == 0) {
+    constant.bits = 0;
+    return constant;
+  } else if (strcmp(token->data, "true") == 0) {
+    constant.bits = 1;
+    return constant;
+  }
+
+  // TODO: replace strtoul with a more robust parsing function that handles
+  // different bases and formats.
+  // reset errno before calling strtoul
+  errno = 0;
+  constant.bits = strtoul(token->data, NULL, 10);
+
+  if (errno != 0) {
+    TRY(-1); // Handle stdlib error
+  }
+
+  return constant;
 }

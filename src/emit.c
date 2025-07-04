@@ -3,19 +3,21 @@
 #include "common.h"
 #include "log.h"
 #include "tree.h"
+#include "utils.h"
+
 #include <errno.h>
-#include <stdlib.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
-#define APPEND_LIST(list, child_function) \
-  do { \
-    InstructionList *__child_list = (child_function); \
-    if (__child_list == NULL) { \
-      CRITICALV("emit", "Child list is NULL at %s:%d", __FILE__, __LINE__); \
-    } \
-    append_instruction_list((list), __child_list); \
-    free(__child_list); \
+#define APPEND_LIST(list, child_function)                                      \
+  do {                                                                         \
+    InstructionList *__child_list = (child_function);                          \
+    if (__child_list == NULL) {                                                \
+      CRITICALV("emit", "Child list is NULL at %s:%d", __FILE__, __LINE__);    \
+    }                                                                          \
+    append_instruction_list((list), __child_list);                             \
+    free(__child_list);                                                        \
   } while (0)
 
 struct GenLabel {
@@ -31,7 +33,7 @@ InstructionList *emit_rval_expression(struct expression *expr);
  * Emits an expression that uses both l-value and r-value semantics.
  * This is typically used for assignments and other expressions that require
  * both reading and writing to a variable.
- * 
+ *
  * @param expr The expression to emit.
  * @return A list of instructions representing the emitted expression.
  */
@@ -47,7 +49,8 @@ const char *generate_label(const char *prefix) {
     CRITICAL("emit", "Out of memory!");
   }
 
-  snprintf(new_label->name, sizeof(new_label->name), ".%s_%lu", label_prefix, label_counter++);
+  snprintf(new_label->name, sizeof(new_label->name), ".%s_%lu", label_prefix,
+           label_counter++);
 
   new_label->next = gen_label_list;
   gen_label_list = new_label;
@@ -64,7 +67,8 @@ void free_generated_labels(void) {
   gen_label_list = NULL;
 }
 
-InstructionList *emit_control_flow(struct expression *condition, bool eval, const char *label) {
+InstructionList *emit_control_flow(struct expression *condition, bool eval,
+                                   const char *label) {
   InstructionList *insns = emit_rval_expression(condition);
 
   enum InstructionSet opcode = eval ? JUMP_NOT_ZERO : JUMP_EQU_ZERO;
@@ -133,7 +137,8 @@ InstructionList *emit_function(struct declaration *decl) {
 
   // Emit function label
   if (decl->name) {
-    append_instruction(insns, ILABEL, OP_LABEL(decl->name->name->data), OP_NONE, OP_NONE);
+    append_instruction(insns, ILABEL, OP_LABEL(decl->name->name->data), OP_NONE,
+                       OP_NONE);
   } else {
     CRITICAL("emit", "Function declaration without a name");
   }
@@ -145,7 +150,8 @@ InstructionList *emit_function(struct declaration *decl) {
     APPEND_LIST(insns, emit_statement(decl->body));
   } else {
     // empty function body
-    // This is a no-op, but we still need to emit an instruction to return for function calls.
+    // This is a no-op, but we still need to emit an instruction to return for
+    // function calls.
     append_instruction(insns, IRETURN, OP_NONE, OP_NONE, OP_NONE);
   }
 
@@ -169,7 +175,8 @@ InstructionList *emit_declaration(struct declaration *decl) {
     emit_init_declarator_list(decl->init_declarator_list);
   }
 
-  return create_instruction_list(); // TODO: No instructions generated for non-function declaration
+  return create_instruction_list(); // TODO: No instructions generated for
+                                    // non-function declaration
 }
 
 InstructionList *emit_declaration_list(struct declaration_list *list) {
@@ -185,7 +192,7 @@ InstructionList *emit_declaration_list(struct declaration_list *list) {
 void emit_break_stmt(struct statement *stmt) { UNUSED(stmt); }
 
 InstructionList *emit_statement_list(struct statement_list *list) {
-  InstructionList *insns = create_instruction_list();  
+  InstructionList *insns = create_instruction_list();
 
   for (struct statement *child = list->head; child != NULL;
        child = child->next) {
@@ -235,7 +242,8 @@ InstructionList *emit_if_stmt(struct statement *stmt) {
 
   bool has_else = stmt->_if.else_body != NULL;
 
-  InstructionList *insns = emit_control_flow(stmt->_if.condition, false, has_else ? label_else : label_end);
+  InstructionList *insns = emit_control_flow(stmt->_if.condition, false,
+                                             has_else ? label_else : label_end);
 
   APPEND_LIST(insns, emit_statement(stmt->_if.body));
 
@@ -341,25 +349,15 @@ void emit_rval_expression_list(struct expression_list *list);
 
 InstructionList *emit_rval_constant_expr(struct expression *expr) {
   InstructionList *insns = create_instruction_list();
+  Constant value = eval_token(expr->_constant);
 
-  // TODO: replace strtoul with a more robust parsing function that handles
-  // different bases and formats.
-  // reset errno before calling strtoul
-  errno = 0;
-  uint64_t constant_value = strtoul(expr->_constant->data, NULL, 10);
-
-  if (errno != 0) {
-    TRY(-1); // Handle stdlib error
-  }
-
-  append_instruction(insns, LOAD_CONST, OP_REG(expr->reg), OP_CONST(constant_value), OP_NONE);
+  append_instruction(insns, LOAD_CONST, OP_REG(expr->reg), OP_CONST(value.bits),
+                     OP_NONE);
 
   return insns;
 }
 
-void emit_rval_id_expression(struct expression *expr) {
-  emit_id(expr->_id);
-}
+void emit_rval_id_expression(struct expression *expr) { emit_id(expr->_id); }
 
 void emit_rval_index_expression(struct expression *expr) {
   if (expr->_index.object) {
@@ -406,10 +404,12 @@ InstructionList *emit_rval_unary_expr(struct expression *expr) {
   } else if (strcmp(expr->_unary.operator->data, "+") == 0) {
     return insns;
   } else {
-    CRITICALV("emit", "Unknown unary operator: %s", expr->_unary.operator->data);
+    CRITICALV("emit", "Unknown unary operator: %s",
+              expr->_unary.operator->data);
   }
 
-  append_instruction(insns, opcode, OP_REG(expr->reg), OP_REG(expr->_unary.base->reg), operand_second);
+  append_instruction(insns, opcode, OP_REG(expr->reg),
+                     OP_REG(expr->_unary.base->reg), operand_second);
   return insns;
 }
 
@@ -424,12 +424,14 @@ void emit_rval_cast_expr(struct expression *expr) {
 }
 
 InstructionList *emit_rval_binary_expr(struct expression *expr) {
-  struct expression *first = expr->_binary.left->reg_count > expr->_binary.right->reg_count
-                                ? expr->_binary.left
-                                : expr->_binary.right;
-  struct expression *second = expr->_binary.left->reg_count > expr->_binary.right->reg_count
-                                 ? expr->_binary.right
-                                 : expr->_binary.left;
+  struct expression *first =
+      expr->_binary.left->reg_count > expr->_binary.right->reg_count
+          ? expr->_binary.left
+          : expr->_binary.right;
+  struct expression *second =
+      expr->_binary.left->reg_count > expr->_binary.right->reg_count
+          ? expr->_binary.right
+          : expr->_binary.left;
 
   InstructionList *insns = emit_rval_expression(first);
   APPEND_LIST(insns, emit_rval_expression(second));
@@ -473,19 +475,23 @@ InstructionList *emit_rval_binary_expr(struct expression *expr) {
   } else if (strcmp(expr->_binary.operator->data, "*") == 0) {
     opcode = MULTIPLY;
   } else {
-    CRITICALV("emit", "Unknown binary operator: %s", expr->_binary.operator->data);
+    CRITICALV("emit", "Unknown binary operator: %s",
+              expr->_binary.operator->data);
   }
 
-  append_instruction(insns, opcode, OP_REG(expr->reg), OP_REG(expr->_binary.left->reg), OP_REG(expr->_binary.right->reg));
+  append_instruction(insns, opcode, OP_REG(expr->reg),
+                     OP_REG(expr->_binary.left->reg),
+                     OP_REG(expr->_binary.right->reg));
 
   return insns;
 }
 
-InstructionList *emit_rval_ternay_expr(struct expression *expr) {
+InstructionList *emit_rval_ternary_expr(struct expression *expr) {
   const char *false_label = generate_label("ternary_false");
   const char *end_label = generate_label("ternary_end");
 
-  InstructionList *insns = emit_control_flow(expr->_ternary.condition, false, false_label);
+  InstructionList *insns =
+      emit_control_flow(expr->_ternary.condition, false, false_label);
 
   APPEND_LIST(insns, emit_rval_expression(expr->_ternary.true_branch));
   append_instruction(insns, JUMP, OP_LABEL(end_label), OP_NONE, OP_NONE);
@@ -524,7 +530,7 @@ InstructionList *emit_rval_expression(struct expression *expr) {
   case BINARY:
     return emit_rval_binary_expr(expr);
   case TERNARY:
-    return emit_rval_ternay_expr(expr);
+    return emit_rval_ternary_expr(expr);
   default:
     CRITICAL("assign", "Unknown expression type");
   }
@@ -558,9 +564,7 @@ void emit_lval_constant_expr(struct expression *expr) {
   ERROR("emit", "L-value for constant expression is not supported");
 }
 
-void emit_lval_id_expression(struct expression *expr) {
-  emit_id(expr->_id);
-}
+void emit_lval_id_expression(struct expression *expr) { emit_id(expr->_id); }
 
 void emit_lval_index_expression(struct expression *expr) {
   if (expr->_index.object) {
@@ -620,7 +624,7 @@ void emit_lval_binary_expr(struct expression *expr) {
   }
 }
 
-void emit_lval_ternay_expr(struct expression *expr) {
+void emit_lval_ternary_expr(struct expression *expr) {
   if (expr->_ternary.condition) {
     emit_lval_expression(expr->_ternary.condition);
   }
@@ -665,7 +669,7 @@ InstructionList *emit_lval_expression(struct expression *expr) {
     emit_lval_binary_expr(expr);
     break;
   case TERNARY:
-    emit_lval_ternay_expr(expr);
+    emit_lval_ternary_expr(expr);
     break;
   default:
     CRITICAL("assign", "Unknown expression type");
@@ -693,11 +697,11 @@ void emit_lval_expression_list(struct expression_list *list) {
 
 InstructionList *emit_expression(struct expression *expr) {
   UNUSED(expr);
-  // TODO: Implement this function to handle both l-value and r-value expressions.
+  // TODO: Implement this function to handle both l-value and r-value
+  // expressions.
   return create_instruction_list();
 }
 
 InstructionList *emit_translation_unit(struct translation_unit *unit) {
   return emit_declaration_list(&unit->external_declarations);
 }
-

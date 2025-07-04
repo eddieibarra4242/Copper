@@ -87,11 +87,13 @@ bool is_whitespace(char character) {
          character == '\n' || character == '\v' || character == '\f';
 }
 
-bool is_in_array(const char *value, size_t value_length, const char *array[], size_t len) {
+bool is_in_array(const char *value, size_t value_length, const char *array[],
+                 size_t len) {
   for (size_t i = 0; i < len; i++) {
     size_t constant_len = strlen(array[i]);
 
-    if (value_length != constant_len) continue;
+    if (value_length != constant_len)
+      continue;
 
     if (strncmp(value, array[i], value_length) == 0) {
       return true;
@@ -730,7 +732,7 @@ Token *alloc_new_token(const char *value, kind_t kind, size_t start, size_t end,
   }
 
   new_token->data = strncpy(data, value, value_length);
-  new_token->data[value_length] = '\0';
+  data[value_length] = '\0';
 
   return new_token;
 }
@@ -996,7 +998,7 @@ void free_list(Token *list) {
     free_list(list->next);
 
   if (list->data)
-    free(list->data);
+    free((void *)list->data);
 
   free(list);
 }

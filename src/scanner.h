@@ -29,7 +29,7 @@ typedef struct SpanStruct {
 typedef struct TokenStruct {
   kind_t kind;
   size_t length;
-  char *data;
+  const char *data;
   Span span;
 
   struct TokenStruct *next;

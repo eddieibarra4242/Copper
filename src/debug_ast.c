@@ -170,7 +170,8 @@ void print_statement_list(struct statement_list *list) {
   if (list == NULL)
     return;
 
-  for (struct statement *child = list->head; child != NULL; child = child->next) {
+  for (struct statement *child = list->head; child != NULL;
+       child = child->next) {
     print_statement(child);
   }
 }
@@ -487,7 +488,7 @@ void print_binary_expr(struct expression *expr) {
   stack--;
 }
 
-void print_ternay_expr(struct expression *expr) {
+void print_ternary_expr(struct expression *expr) {
   print("Ternary expression");
 
   stack++;
@@ -545,7 +546,7 @@ void print_expression(struct expression *expr) {
     print_binary_expr(expr);
     break;
   case TERNARY:
-    print_ternay_expr(expr);
+    print_ternary_expr(expr);
     break;
   default:
     print("Unknown expression type");

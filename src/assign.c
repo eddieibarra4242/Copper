@@ -361,7 +361,7 @@ void count_binary_expr(struct expression *expr) {
                                          expr->_binary.right->reg_count);
 }
 
-void count_ternay_expr(struct expression *expr) {
+void count_ternary_expr(struct expression *expr) {
   if (expr->_ternary.condition) {
     count_expression(expr->_ternary.condition);
   }
@@ -411,7 +411,7 @@ void count_expression(struct expression *expr) {
     count_binary_expr(expr);
     break;
   case TERNARY:
-    count_ternay_expr(expr);
+    count_ternary_expr(expr);
     break;
   default:
     CRITICAL("assign", "Unknown expression type");
@@ -574,7 +574,7 @@ void assign_binary_expr(struct expression *expr) {
   }
 }
 
-void assign_ternay_expr(struct expression *expr) {
+void assign_ternary_expr(struct expression *expr) {
   if (expr->_ternary.condition) {
     assign_expression(expr->_ternary.condition);
   }
@@ -622,7 +622,7 @@ void assign_expression(struct expression *expr) {
     assign_binary_expr(expr);
     break;
   case TERNARY:
-    assign_ternay_expr(expr);
+    assign_ternary_expr(expr);
     break;
   default:
     CRITICAL("assign", "Unknown expression type");

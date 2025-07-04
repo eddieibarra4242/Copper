@@ -226,9 +226,7 @@ void $$_constant_expr(struct expression *expr) {
   // expr->_constant
 }
 
-void $$_id_expression(struct expression *expr) {
-  $$_id(expr->_id);
-}
+void $$_id_expression(struct expression *expr) { $$_id(expr->_id); }
 
 void $$_index_expression(struct expression *expr) {
   if (expr->_index.object) {
@@ -288,7 +286,7 @@ void $$_binary_expr(struct expression *expr) {
   }
 }
 
-void $$_ternay_expr(struct expression *expr) {
+void $$_ternary_expr(struct expression *expr) {
   if (expr->_ternary.condition) {
     $$_expression(expr->_ternary.condition);
   }
@@ -333,7 +331,7 @@ void $$_expression(struct expression *expr) {
     $$_binary_expr(expr);
     break;
   case TERNARY:
-    $$_ternay_expr(expr);
+    $$_ternary_expr(expr);
     break;
   default:
     CRITICAL("assign", "Unknown expression type");
