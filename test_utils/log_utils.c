@@ -1,9 +1,9 @@
 #include "log_utils.h"
-#include <log.h>
-#include <unity.h>
-#include <stdarg.h>
 #include <common.h>
+#include <log.h>
+#include <stdarg.h>
 #include <stdio.h>
+#include <unity.h>
 
 const char *expected_message = NULL;
 const char *expected_error_message = NULL;
@@ -23,6 +23,7 @@ void log_message(int level, const char *section, const char *msg,
                  const char *file, int lineno, ...) {
   UNUSED(section);
   UNUSED(file);
+  UNUSED(lineno);
   char actual[1024];
 
   va_list args;
