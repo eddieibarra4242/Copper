@@ -1,16 +1,16 @@
 #include <stdio.h>
 
+#include "assign.h"
 #include "common.h"
 #include "debug_ast.h"
+#include "debug_insn.h"
+#include "emit.h"
 #include "log.h"
 #include "parser.h"
 #include "scanner.h"
-#include "tree.h"
-#include "assign.h"
 #include "symbol.h"
-#include "emit.h"
-#include "debug_insn.h"
 #include "transforms.h"
+#include "tree.h"
 
 int main(int args, char **argv) {
   if (args < 2) {
@@ -73,8 +73,8 @@ int main(int args, char **argv) {
   free_unused_parse_branches();
 
   link_symbols();
-  
-  // After semantic analysis 
+
+  // After semantic analysis
   transform_ast();
   assign_registers();
 

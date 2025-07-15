@@ -183,8 +183,7 @@ struct expression {
   struct expression *next;
 };
 
-struct expression_list
-{
+struct expression_list {
   struct expression *head;
   struct expression *tail;
 };
@@ -250,7 +249,7 @@ struct statement {
 
   union {
     struct compound_statement _compound;
-    struct declaration* _decl;
+    struct declaration *_decl;
     struct expression *_expr;
     struct for_statement _for;
     struct id *_goto;

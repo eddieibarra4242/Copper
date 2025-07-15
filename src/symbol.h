@@ -2,14 +2,12 @@
 
 #include "scanner.h"
 
-struct symbol
-{
+struct symbol {
   const char *name;
   struct symbol *next;
 };
 
-struct scope
-{
+struct scope {
   struct scope *parent;
   struct symbol *symbols;
 };

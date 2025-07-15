@@ -19,25 +19,25 @@
   } while (0)
 
 const char *keywords[] = {
-    "alignas",       "alignof",      "auto",          "bool",
-    "break",         "case",         "char",          "const",
-    "constexpr",     "continue",     "default",       "do",
-    "double",        "else",         "enum",          "extern",
-    "float",         "for",          "goto",          "if",
-    "inline",        "int",          "long",          "register",
-    "restrict",      "return",       "short",         "signed",
-    "sizeof",        "static",       "static_assert", "struct",
-    "switch",        "thread_local", "typedef",       "typeof",
-    "typeof_unqual", "union",        "unsigned",      "void",
-    "volatile",      "while",        "_Atomic",       "_BitInt",
-    "_Complex",      "_Decimal128",  "_Decimal32",    "_Decimal64",
-    "_Generic",      "_Imaginary",   "_Noreturn",
+  "alignas",       "alignof",      "auto",          "bool",
+  "break",         "case",         "char",          "const",
+  "constexpr",     "continue",     "default",       "do",
+  "double",        "else",         "enum",          "extern",
+  "float",         "for",          "goto",          "if",
+  "inline",        "int",          "long",          "register",
+  "restrict",      "return",       "short",         "signed",
+  "sizeof",        "static",       "static_assert", "struct",
+  "switch",        "thread_local", "typedef",       "typeof",
+  "typeof_unqual", "union",        "unsigned",      "void",
+  "volatile",      "while",        "_Atomic",       "_BitInt",
+  "_Complex",      "_Decimal128",  "_Decimal32",    "_Decimal64",
+  "_Generic",      "_Imaginary",   "_Noreturn",
 };
 
 const char *predefined_constants[] = {
-    "false",
-    "nullptr",
-    "true",
+  "false",
+  "nullptr",
+  "true",
 };
 
 size_t seen_newlines = 0;
@@ -205,7 +205,7 @@ size_t scan_sign(const char *file, size_t index) {
 
 size_t scan_floating_suffix(const char *file, size_t index) {
   static const char *suffixes[] = {
-      "f", "l", "F", "L", "df", "dd", "dl", "DF", "DD", "DL",
+    "f", "l", "F", "L", "df", "dd", "dl", "DF", "DD", "DL",
   };
 
   for (size_t i = 0; i < NELEMS(suffixes); i++) {
@@ -968,7 +968,7 @@ Token *scan(const char *file) {
     }
 
     Token *new_token =
-        alloc_new_token(value_begin, kind, start, i, start_coord);
+      alloc_new_token(value_begin, kind, start, i, start_coord);
 
     if (!new_token) {
       free_list(result);

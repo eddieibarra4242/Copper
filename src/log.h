@@ -41,5 +41,5 @@
     }                                                                          \
   } while (0)
 
-void log_message(int level, const char *section, const char *msg, const char *file,
-           int lineno, ...);
+void log_message(int level, const char *section, const char *msg,
+                 const char *file, int lineno, ...);

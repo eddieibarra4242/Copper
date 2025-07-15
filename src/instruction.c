@@ -16,8 +16,9 @@ InstructionList *create_instruction_list(void) {
   return list;
 }
 
-Instruction *append_instruction(InstructionList *list, enum InstructionSet opcode,
-                                         Operand dest, Operand src1, Operand src2) {
+Instruction *append_instruction(InstructionList *list,
+                                enum InstructionSet opcode, Operand dest,
+                                Operand src1, Operand src2) {
   if (list == NULL) {
     CRITICAL("insn", "Cannot append instruction to a NULL list");
   }
@@ -46,7 +47,7 @@ Instruction *append_instruction(InstructionList *list, enum InstructionSet opcod
 }
 
 InstructionList *append_instruction_list(InstructionList *dest,
-                                                   InstructionList *appendage) {
+                                         InstructionList *appendage) {
   if (dest == NULL || appendage == NULL) {
     CRITICAL("insn", "Cannot append NULL instruction list");
   }

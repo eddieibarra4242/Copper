@@ -490,7 +490,7 @@ void assign_id_expression(struct expression *expr) { expr->reg = next_reg; }
 
 void assign_index_expression(struct expression *expr) {
   uint64_t object_count =
-      expr->_index.object ? expr->_index.object->reg_count : 0;
+    expr->_index.object ? expr->_index.object->reg_count : 0;
   uint64_t index_count = expr->_index.index ? expr->_index.index->reg_count : 0;
 
   if (!expr->_index.object || !expr->_index.index) {
@@ -579,7 +579,7 @@ void assign_cast_expr(struct expression *expr) {
 void assign_binary_expr(struct expression *expr) {
   uint64_t left_count = expr->_binary.left ? expr->_binary.left->reg_count : 0;
   uint64_t right_count =
-      expr->_binary.right ? expr->_binary.right->reg_count : 0;
+    expr->_binary.right ? expr->_binary.right->reg_count : 0;
 
   if (!expr->_binary.left || !expr->_binary.right) {
     CRITICAL("assign",

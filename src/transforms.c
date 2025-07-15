@@ -7,27 +7,27 @@
 
 // Fake tokens
 Token false_token = {
-    .kind = CONSTANT,
-    .data = "false",
-    .length = 5,
-    .span =
-        {
-            .start = {-1, -1},
-            .end = {-1, -1},
-        },
-    .next = NULL,
+  .kind = CONSTANT,
+  .data = "false",
+  .length = 5,
+  .span =
+    {
+      .start = {-1, -1},
+      .end = {-1, -1},
+    },
+  .next = NULL,
 };
 
 Token true_token = {
-    .kind = CONSTANT,
-    .data = "true",
-    .length = 5,
-    .span =
-        {
-            .start = {-1, -1},
-            .end = {-1, -1},
-        },
-    .next = NULL,
+  .kind = CONSTANT,
+  .data = "true",
+  .length = 5,
+  .span =
+    {
+      .start = {-1, -1},
+      .end = {-1, -1},
+    },
+  .next = NULL,
 };
 
 void transform_translation_unit(struct translation_unit *unit);
@@ -350,17 +350,17 @@ void short_circuit_binary_expr(struct expression *expr) {
   bool is_and = strcmp(expr->_binary.operator->data, "&&") == 0;
 
   struct expression ternary = {
-      .type = TERNARY,
-      .reg = expr->reg,
-      .reg_count = expr->reg_count,
-      .next = NULL,
+    .type = TERNARY,
+    .reg = expr->reg,
+    .reg_count = expr->reg_count,
+    .next = NULL,
   };
 
   ternary._ternary.condition = expr->_binary.left;
   ternary._ternary.true_branch =
-      is_and ? expr->_binary.right : create_const_expression(&true_token);
+    is_and ? expr->_binary.right : create_const_expression(&true_token);
   ternary._ternary.false_branch =
-      is_and ? create_const_expression(&false_token) : expr->_binary.right;
+    is_and ? create_const_expression(&false_token) : expr->_binary.right;
 
   memcpy(expr, &ternary, sizeof(struct expression));
 

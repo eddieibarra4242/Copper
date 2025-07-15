@@ -439,13 +439,13 @@ void emit_rval_cast_expr(struct expression *expr) {
 
 InstructionList *emit_rval_binary_expr(struct expression *expr) {
   struct expression *first =
-      expr->_binary.left->reg_count > expr->_binary.right->reg_count
-          ? expr->_binary.left
-          : expr->_binary.right;
+    expr->_binary.left->reg_count > expr->_binary.right->reg_count
+      ? expr->_binary.left
+      : expr->_binary.right;
   struct expression *second =
-      expr->_binary.left->reg_count > expr->_binary.right->reg_count
-          ? expr->_binary.right
-          : expr->_binary.left;
+    expr->_binary.left->reg_count > expr->_binary.right->reg_count
+      ? expr->_binary.right
+      : expr->_binary.left;
 
   InstructionList *insns = emit_rval_expression(first);
   APPEND_LIST(insns, emit_rval_expression(second));
@@ -505,7 +505,7 @@ InstructionList *emit_rval_ternary_expr(struct expression *expr) {
   const char *end_label = generate_label("ternary_end");
 
   InstructionList *insns =
-      emit_control_flow(expr->_ternary.condition, false, false_label);
+    emit_control_flow(expr->_ternary.condition, false, false_label);
 
   APPEND_LIST(insns, emit_rval_expression(expr->_ternary.true_branch));
   append_instruction(insns, JUMP, OP_LABEL(end_label), OP_NONE, OP_NONE);
