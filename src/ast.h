@@ -44,6 +44,12 @@ enum index_t {
   ARROW,
 };
 
+enum declaration_t {
+  VARIABLE,
+  FUNCTION,
+  TYPEDEF,
+};
+
 struct id {
   Token *name;
   struct symbol *symbol;
@@ -66,6 +72,7 @@ struct specifier_list {
 };
 
 struct expression;
+struct declaration_list;
 
 struct initialized_declarator {
   struct id *declarator; // FIXME: replace id with declarator
@@ -80,18 +87,32 @@ struct init_declarator_list {
   struct initialized_declarator *tail;
 };
 
-struct declaration {
-  bool is_type_definition;
-
+struct type_definition {
   struct specifier_list *specifiers;
-
-  // For the next two fields, only one of them is set.
   struct id *name;
-  struct init_declarator_list *init_declarator_list;
+};
 
-  // only for functions
+struct function {
+  struct specifier_list *specifiers;
+  struct id *name;
+  struct declaration_list *parameters;
   struct statement *body;
   struct scope *parameter_scope;
+};
+
+struct variable_definition {
+  struct specifier_list *specifiers;
+  struct init_declarator_list *init_declarator_list;
+};
+
+struct declaration {
+  enum declaration_t type;
+
+  union {
+    struct type_definition _type_def;
+    struct function _func;
+    struct variable_definition _var;
+  };
 
   // this is a part of a list
   struct declaration *next;

@@ -43,6 +43,7 @@ void $$_specifier_list(struct specifier_list *list) {
 
 void $$_statement(struct statement *stmt);
 void $$_expression(struct expression *expr);
+void $$_declaration(struct declaration *decl);
 
 void $$_initialized_declarator(struct initialized_declarator *decl) {
   $$_id(decl->declarator);
@@ -52,37 +53,68 @@ void $$_initialized_declarator(struct initialized_declarator *decl) {
 }
 
 void $$_init_declarator_list(struct init_declarator_list *list) {
+  if (list == NULL)
+    return;
+
   for (struct initialized_declarator *cur = list->head; cur != NULL;
        cur = cur->next) {
     $$_initialized_declarator(cur);
   }
 }
 
-void $$_declaration(struct declaration *decl) {
-  if (decl->specifiers)
-    $$_specifier_list(decl->specifiers);
+void $$_declaration_list(struct declaration_list *list) {
+  struct declaration *cur = list->head;
+  struct declaration *next = NULL;
 
-  if (decl->name)
-    $$_id(decl->name);
-
-  if (decl->body) {
-    $$_statement(decl->body);
-  }
-
-  if (decl->init_declarator_list) {
-    $$_init_declarator_list(decl->init_declarator_list);
+  while (cur) {
+    next = cur->next;
+    $$_declaration(cur);
+    cur = next;
   }
 }
 
-void $$_declaration_list(struct declaration_list *list) {
-  for (struct declaration *cur = list->head; cur != NULL; cur = cur->next) {
-    $$_declaration(cur);
+void $$_variable_definition(struct declaration *decl) {
+  $$_specifier_list(decl->_var.specifiers);
+  $$_init_declarator_list(decl->_var.init_declarator_list);
+}
+
+void $$_function_definition(struct declaration *decl) {
+  $$_specifier_list(decl->_func.specifiers);
+  $$_id(decl->_func.name);
+
+  if (decl->_func.parameters)
+    $$_declaration_list(decl->_func.parameters);
+  
+  $$_statement(decl->_func.body);
+}
+
+void $$_type_definition(struct declaration *decl) {
+  $$_specifier_list(decl->_type_def.specifiers);
+  $$_id(decl->_type_def.name);
+}
+
+void $$_declaration(struct declaration *decl) {
+  switch (decl->type) {
+  case VARIABLE:
+    $$_variable_definition(decl);
+    break;
+  case FUNCTION:
+    $$_function_definition(decl);
+    break;
+  case TYPEDEF:
+    $$_type_definition(decl);
+    break;
+  default:
+    CRITICAL("ast", "Unknown declaration type");
   }
 }
 
 void $$_break_stmt(struct statement *stmt) { UNUSED(stmt); }
 
 void $$_statement_list(struct statement_list *list) {
+  if (list == NULL)
+    return;
+
   for (struct statement *child = list->head; child != NULL;
        child = child->next) {
     $$_statement(child);

@@ -10,7 +10,7 @@ struct id *register_type(struct id *new_type);
 %}
 
 %glr-parser
-%expect 215
+%expect 214
 %expect-rr 1
 
 %union {
@@ -19,6 +19,7 @@ struct id *register_type(struct id *new_type);
   struct specifier *specval;
   struct specifier_list *speclistval;
   struct declaration *declval;
+  struct declaration_list *decllistval;
   struct statement *stmtval;
   struct statement_list *stmtlistval;
   struct translation_unit *unitval;
@@ -128,9 +129,11 @@ struct id *register_type(struct id *new_type);
 %type<unitval> translation_unit
 
 %type<declval> external_declaration function_definition declaration
-%type<declval> typedef_declaration
+%type<declval> typedef_declaration parameter_declaration
 
-%type<idval> declarator direct_declarator array_declarator function_declarator
+%type<decllistval> parameter_type_list parameter_list parameter_type_list_opt
+
+%type<idval> declarator direct_declarator array_declarator // function_declarator
 %type<idval> typedef_name identifier typedef_declarator
 
 %type<specval> declaration_specifier storage_class_specifier
@@ -157,8 +160,8 @@ struct id *register_type(struct id *new_type);
 %type<exprval> initializer
 %type<exprlistval> argument_expression_list argument_expression_list_opt
 
-%type<initdeclval> init_declarator
-%type<initdecllistval> init_declarator_list
+%type<initdeclval> init_declarator parameter_declarator
+%type<initdecllistval> init_declarator_list parameter_declarator_l
 
 %%
   /* External definitions (following A.3.4) */
@@ -168,7 +171,8 @@ struct id *register_type(struct id *new_type);
   external_declaration: function_definition { $$ = $1; }
     | declaration { $$ = $1; }
 
-  function_definition: attribute_specifier_sequence_opt declaration_specifiers declarator function_body { $$ = create_function($2, $3, $4); }
+  function_definition:
+    attribute_specifier_sequence_opt declaration_specifiers direct_declarator '(' parameter_type_list_opt ')' function_body { $$ = create_function($2, $3, $5, $7); }
 
   function_body: compound_statement { $$ = $1; }
 
@@ -285,11 +289,11 @@ struct id *register_type(struct id *new_type);
   constant_expression: conditional_expression  { $$ = $1; }
 
   /* Declarations (following A.2.2) */
-  declaration: declaration_specifiers ';' %dprec 2 { $$ = create_declaration($1, NULL); }
-    |  declaration_specifiers init_declarator_list ';' %dprec 1 { $$ = create_init_declaration($1, $2); }
-    |  attribute_specifier_sequence declaration_specifiers init_declarator_list ';' { $$ = create_init_declaration($2, $3); }
-    |  static_assert_declaration { $$ = create_declaration(NULL, NULL); }
-    |  attribute_declaration { $$ = create_declaration(NULL, NULL); }
+  declaration: declaration_specifiers ';' %dprec 2 { $$ = create_variable_declaration($1, NULL); }
+    |  declaration_specifiers init_declarator_list ';' %dprec 1 { $$ = create_variable_declaration($1, $2); }
+    |  attribute_specifier_sequence declaration_specifiers init_declarator_list ';' { $$ = create_variable_declaration($2, $3); }
+    |  static_assert_declaration { $$ = NULL; /* FIXME */ }
+    |  attribute_declaration { $$ = NULL; /* FIXME */ }
     |  attribute_specifier_sequence_opt typedef_declaration { $$ = $2; }
 
   declaration_specifiers: declaration_specifier attribute_specifier_sequence_opt { $$ = create_specifier_list($1); }
@@ -405,29 +409,36 @@ struct id *register_type(struct id *new_type);
   direct_declarator: ID attribute_specifier_sequence_opt { $$ = create_id($1); }
     | '(' declarator ')' { $$ = $2; }
     | array_declarator attribute_specifier_sequence_opt { $$ = $1; }
-    | function_declarator attribute_specifier_sequence_opt { $$ = $1; }
+    // | function_declarator attribute_specifier_sequence_opt { $$ = $1; }
 
   array_declarator: direct_declarator '[' type_qualifier_list_opt assignment_expression_opt ']' { $$ = $1; }
     | direct_declarator '[' "static" type_qualifier_list_opt assignment_expression ']' { $$ = $1; }
     | direct_declarator '[' type_qualifier_list "static" assignment_expression ']' { $$ = $1; }
     | direct_declarator '[' type_qualifier_list_opt '*' ']' { $$ = $1; }
 
-  function_declarator: direct_declarator '(' parameter_type_list_opt ')' { $$ = $1; }
+  // function_declarator: direct_declarator '(' parameter_type_list_opt ')' { $$ = $1; }
 
   pointer: '*' attribute_specifier_sequence_opt type_qualifier_list_opt pointer_opt;
 
   type_qualifier_list: type_qualifier
     | type_qualifier_list type_qualifier;
 
-  parameter_type_list: parameter_list
-    | parameter_list ',' "..."
-    | "...";
+  parameter_type_list: parameter_list { $$ = $1; }
+    | parameter_list ',' "..." { $$ = $1; /* FIXME */}
+    | "..." { $$ = NULL; /* FIXME */}
 
-  parameter_list: parameter_declaration
-    | parameter_list ',' parameter_declaration;
+  parameter_list: parameter_declaration { $$ = create_declaration_list($1); }
+    | parameter_list ',' parameter_declaration { $$ = append_declaration($1, $3); }
 
-  parameter_declaration: attribute_specifier_sequence_opt declaration_specifiers declarator %dprec 2
-    | attribute_specifier_sequence_opt declaration_specifiers abstract_declarator_opt %dprec 1;
+  parameter_declaration: 
+    attribute_specifier_sequence_opt declaration_specifiers parameter_declarator_l { $$ = create_variable_declaration($2, $3); }
+
+  /* The following rule does not appear in the spec. */
+  parameter_declarator_l: parameter_declarator { $$ = create_init_declarator_list($1); }
+
+  /* The following rule does not appear in the spec. */
+  parameter_declarator: declarator %dprec 2 { $$ = create_initialized_declarator($1, NULL); }
+    | abstract_declarator_opt %dprec 1 { $$ = NULL; }
 
   type_name: specifier_qualifier_list abstract_declarator_opt { $$ = $1; }
 
@@ -560,7 +571,8 @@ struct id *register_type(struct id *new_type);
   designation_opt: %empty | designation;
   direct_abstract_declarator_opt: %empty | direct_abstract_declarator;
   abstract_declarator_opt: %empty | abstract_declarator;
-  parameter_type_list_opt: %empty | parameter_type_list;
+  parameter_type_list_opt: %empty { $$ = NULL; }
+    | parameter_type_list { $$ = $1; }
   assignment_expression_opt: %empty | assignment_expression;
   type_qualifier_list_opt: %empty | type_qualifier_list;
   pointer_opt: %empty | pointer;

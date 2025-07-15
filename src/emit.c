@@ -78,6 +78,7 @@ InstructionList *emit_control_flow(struct expression *condition, bool eval,
 }
 
 InstructionList *emit_translation_unit(struct translation_unit *unit);
+InstructionList *emit_declaration(struct declaration *decl);
 
 // Entry point
 InstructionList *emit_intermediate_representation() {
@@ -125,58 +126,13 @@ void emit_initialized_declarator(struct initialized_declarator *decl) {
 }
 
 void emit_init_declarator_list(struct init_declarator_list *list) {
+  if (list == NULL)
+    return;
+
   for (struct initialized_declarator *cur = list->head; cur != NULL;
        cur = cur->next) {
     emit_initialized_declarator(cur);
   }
-}
-
-// TODO: Separate functions from declarations in AST
-InstructionList *emit_function(struct declaration *decl) {
-  InstructionList *insns = create_instruction_list();
-
-  // Emit function label
-  if (decl->name) {
-    append_instruction(insns, ILABEL, OP_LABEL(decl->name->name->data), OP_NONE,
-                       OP_NONE);
-  } else {
-    CRITICAL("emit", "Function declaration without a name");
-  }
-
-  // Emit function prologue
-
-  // Emit function body
-  if (decl->body) {
-    APPEND_LIST(insns, emit_statement(decl->body));
-  } else {
-    // empty function body
-    // This is a no-op, but we still need to emit an instruction to return for
-    // function calls.
-    append_instruction(insns, IRETURN, OP_NONE, OP_NONE, OP_NONE);
-  }
-
-  // Emit function epilogue
-
-  return insns; // FIXME
-}
-
-InstructionList *emit_declaration(struct declaration *decl) {
-  if (decl->body) {
-    return emit_function(decl);
-  }
-
-  if (decl->specifiers)
-    emit_specifier_list(decl->specifiers);
-
-  if (decl->name)
-    emit_id(decl->name);
-
-  if (decl->init_declarator_list) {
-    emit_init_declarator_list(decl->init_declarator_list);
-  }
-
-  return create_instruction_list(); // TODO: No instructions generated for
-                                    // non-function declaration
 }
 
 InstructionList *emit_declaration_list(struct declaration_list *list) {
@@ -189,10 +145,68 @@ InstructionList *emit_declaration_list(struct declaration_list *list) {
   return insns;
 }
 
+void emit_variable_definition(struct declaration *decl) {
+  emit_specifier_list(decl->_var.specifiers);
+  emit_init_declarator_list(decl->_var.init_declarator_list);
+}
+
+InstructionList *emit_function(struct declaration *decl) {
+  InstructionList *insns = create_instruction_list();
+
+  // Emit function label
+  if (decl->_func.name) {
+    append_instruction(insns, ILABEL, OP_LABEL(decl->_func.name->name->data),
+                       OP_NONE, OP_NONE);
+  } else {
+    CRITICAL("emit", "Function declaration without a name");
+  }
+
+  // Emit function prologue
+
+  // Emit function body
+  if (decl->_func.body) {
+    APPEND_LIST(insns, emit_statement(decl->_func.body));
+  } else {
+    // empty function body
+    // This is a no-op, but we still need to emit an instruction to return for
+    // function calls.
+    append_instruction(insns, IRETURN, OP_NONE, OP_NONE, OP_NONE);
+  }
+
+  // Emit function epilogue
+
+  return insns; // FIXME
+}
+
+void emit_type_definition(struct declaration *decl) {
+  emit_specifier_list(decl->_type_def.specifiers);
+  emit_id(decl->_type_def.name);
+}
+
+InstructionList *emit_declaration(struct declaration *decl) {
+  switch (decl->type) {
+  case VARIABLE:
+    emit_variable_definition(decl);
+    break;
+  case FUNCTION:
+    return emit_function(decl);
+  case TYPEDEF:
+    emit_type_definition(decl);
+    break;
+  default:
+    CRITICAL("ast", "Unknown declaration type");
+  }
+
+  return create_instruction_list();
+}
+
 void emit_break_stmt(struct statement *stmt) { UNUSED(stmt); }
 
 InstructionList *emit_statement_list(struct statement_list *list) {
   InstructionList *insns = create_instruction_list();
+
+  if (list == NULL)
+    return insns;
 
   for (struct statement *child = list->head; child != NULL;
        child = child->next) {

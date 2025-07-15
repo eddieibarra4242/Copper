@@ -37,7 +37,7 @@ void destroy_scope(struct scope *scope) {
 
 void create_symbol(struct id *id) {
   if (current_scope == NULL) {
-    CRITICAL("assign", "Cannot create symbol without a scope");
+    CRITICAL("link", "Cannot create symbol without a scope");
   }
 
   struct symbol *new_symbol = malloc(sizeof(struct symbol));
@@ -80,7 +80,7 @@ void symbol_id(struct id *id) {
 
   if (symbol == NULL) {
     // todo: accumulate errors
-    ERRORV("assign",
+    ERRORV("link",
            "Cannot find declaration for symbol '%s' (seen on line %zu:%zu)",
            id->name->data, id->name->span.start.line_number,
            id->name->span.start.column);
@@ -107,7 +107,7 @@ void symbol_specifier(struct specifier *specifier) {
     symbol_id_specifier(specifier);
     break;
   default:
-    CRITICAL("assign", "Unknown specifier type");
+    CRITICAL("link", "Unknown specifier type");
   }
 }
 
@@ -119,6 +119,7 @@ void symbol_specifier_list(struct specifier_list *list) {
 
 void symbol_statement(struct statement *stmt);
 void symbol_expression(struct expression *expr);
+void symbol_declaration(struct declaration *decl);
 
 void symbol_initialized_declarator(struct initialized_declarator *decl) {
   create_symbol(decl->declarator);
@@ -129,39 +130,67 @@ void symbol_initialized_declarator(struct initialized_declarator *decl) {
 }
 
 void symbol_init_declarator_list(struct init_declarator_list *list) {
+  if (list == NULL)
+    return;
+
   for (struct initialized_declarator *cur = list->head; cur != NULL;
        cur = cur->next) {
     symbol_initialized_declarator(cur);
   }
 }
 
-void symbol_declaration(struct declaration *decl) {
-  if (decl->specifiers)
-    symbol_specifier_list(decl->specifiers);
+void symbol_declaration_list(struct declaration_list *list) {
+  struct declaration *cur = list->head;
+  struct declaration *next = NULL;
 
-  if (decl->name) {
-    create_symbol(decl->name);
-    symbol_id(decl->name);
-  }
-
-  if (decl->body) {
-    decl->parameter_scope = create_scope();
-
-    // current scope is already set to the new scope
-    symbol_statement(decl->body);
-
-    // restore the previous scope after the body has been processed
-    current_scope = current_scope->parent;
-  }
-
-  if (decl->init_declarator_list) {
-    symbol_init_declarator_list(decl->init_declarator_list);
+  while (cur) {
+    next = cur->next;
+    symbol_declaration(cur);
+    cur = next;
   }
 }
 
-void symbol_declaration_list(struct declaration_list *list) {
-  for (struct declaration *cur = list->head; cur != NULL; cur = cur->next) {
-    symbol_declaration(cur);
+void symbol_variable_definition(struct declaration *decl) {
+  symbol_specifier_list(decl->_var.specifiers);
+  symbol_init_declarator_list(decl->_var.init_declarator_list);
+}
+
+void symbol_function_definition(struct declaration *decl) {
+  create_symbol(decl->_func.name);
+
+  decl->_func.parameter_scope = create_scope();
+
+  symbol_specifier_list(decl->_func.specifiers);
+  symbol_id(decl->_func.name);
+
+  if (decl->_func.parameters)
+    symbol_declaration_list(decl->_func.parameters);
+
+  symbol_statement(decl->_func.body);
+
+  current_scope = current_scope->parent;
+}
+
+void symbol_type_definition(struct declaration *decl) {
+  create_symbol(decl->_type_def.name);
+
+  symbol_specifier_list(decl->_type_def.specifiers);
+  symbol_id(decl->_type_def.name);
+}
+
+void symbol_declaration(struct declaration *decl) {
+  switch (decl->type) {
+  case VARIABLE:
+    symbol_variable_definition(decl);
+    break;
+  case FUNCTION:
+    symbol_function_definition(decl);
+    break;
+  case TYPEDEF:
+    symbol_type_definition(decl);
+    break;
+  default:
+    CRITICAL("ast", "Unknown declaration type");
   }
 }
 
@@ -313,7 +342,7 @@ void symbol_statement(struct statement *stmt) {
     symbol_while_stmt(stmt);
     break;
   default:
-    CRITICAL("assign", "Unknown statement type");
+    CRITICAL("link", "Unknown statement type");
   }
 }
 
@@ -432,7 +461,7 @@ void symbol_expression(struct expression *expr) {
     symbol_ternary_expr(expr);
     break;
   default:
-    CRITICAL("assign", "Unknown expression type");
+    CRITICAL("link", "Unknown expression type");
   }
 }
 

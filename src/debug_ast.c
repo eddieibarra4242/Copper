@@ -99,6 +99,7 @@ void print_specifier_list(struct specifier_list *list) {
 
 void print_statement(struct statement *stmt);
 void print_expression(struct expression *expr);
+void print_declaration(struct declaration *decl);
 
 void print_initialized_declarator(struct initialized_declarator *decl) {
   print("Initialized declarator");
@@ -112,6 +113,9 @@ void print_initialized_declarator(struct initialized_declarator *decl) {
 }
 
 void print_init_declarator_list(struct init_declarator_list *list) {
+  if (list == NULL)
+    return;
+
   print("Init declarator list");
 
   stack++;
@@ -122,41 +126,64 @@ void print_init_declarator_list(struct init_declarator_list *list) {
   stack--;
 }
 
-void print_declaration(struct declaration *decl) {
-  if (decl->body) {
-    print("Function");
-  } else if (decl->is_type_definition) {
-    print("Typedef");
-  } else {
-    print("Declaration");
+void print_declaration_list(struct declaration_list *list) {
+  struct declaration *cur = list->head;
+  struct declaration *next = NULL;
+
+  while (cur) {
+    next = cur->next;
+    print_declaration(cur);
+    cur = next;
   }
+}
+
+void print_variable_definition(struct declaration *decl) {
+  print("Variable definition");
 
   stack++;
-
-  if (decl->specifiers)
-    print_specifier_list(decl->specifiers);
-
-  if (decl->name)
-    print_id(decl->name);
-
-  if (decl->body) {
-    print_statement(decl->body);
-  }
-
-  if (decl->parameter_scope) {
-    print("Parameter scope: %p", decl->parameter_scope);
-  }
-
-  if (decl->init_declarator_list) {
-    print_init_declarator_list(decl->init_declarator_list);
-  }
-
+  print_specifier_list(decl->_var.specifiers);
+  print_init_declarator_list(decl->_var.init_declarator_list);
   stack--;
 }
 
-void print_declaration_list(struct declaration_list *list) {
-  for (struct declaration *cur = list->head; cur != NULL; cur = cur->next) {
-    print_declaration(cur);
+void print_function_definition(struct declaration *decl) {
+  print("Function");
+
+  stack++;
+  print_specifier_list(decl->_func.specifiers);
+  print_id(decl->_func.name);
+
+  if (decl->_func.parameters)
+    print_declaration_list(decl->_func.parameters);
+
+  print_statement(decl->_func.body);
+
+  print("Parameter scope: %p", decl->_func.parameter_scope);
+  stack--;
+}
+
+void print_type_definition(struct declaration *decl) {
+  print("Type definition");
+
+  stack++;
+  print_specifier_list(decl->_type_def.specifiers);
+  print_id(decl->_type_def.name);
+  stack--;
+}
+
+void print_declaration(struct declaration *decl) {
+  switch (decl->type) {
+  case VARIABLE:
+    print_variable_definition(decl);
+    break;
+  case FUNCTION:
+    print_function_definition(decl);
+    break;
+  case TYPEDEF:
+    print_type_definition(decl);
+    break;
+  default:
+    CRITICAL("ast", "Unknown declaration type");
   }
 }
 

@@ -73,6 +73,7 @@ void transform_specifier_list(struct specifier_list *list) {
 
 void transform_statement(struct statement *stmt);
 void transform_expression(struct expression *expr);
+void transform_declaration(struct declaration *decl);
 
 void transform_initialized_declarator(struct initialized_declarator *decl) {
   transform_id(decl->declarator);
@@ -82,37 +83,68 @@ void transform_initialized_declarator(struct initialized_declarator *decl) {
 }
 
 void transform_init_declarator_list(struct init_declarator_list *list) {
+  if (list == NULL)
+    return;
+
   for (struct initialized_declarator *cur = list->head; cur != NULL;
        cur = cur->next) {
     transform_initialized_declarator(cur);
   }
 }
 
-void transform_declaration(struct declaration *decl) {
-  if (decl->specifiers)
-    transform_specifier_list(decl->specifiers);
+void transform_declaration_list(struct declaration_list *list) {
+  struct declaration *cur = list->head;
+  struct declaration *next = NULL;
 
-  if (decl->name)
-    transform_id(decl->name);
-
-  if (decl->body) {
-    transform_statement(decl->body);
-  }
-
-  if (decl->init_declarator_list) {
-    transform_init_declarator_list(decl->init_declarator_list);
+  while (cur) {
+    next = cur->next;
+    transform_declaration(cur);
+    cur = next;
   }
 }
 
-void transform_declaration_list(struct declaration_list *list) {
-  for (struct declaration *cur = list->head; cur != NULL; cur = cur->next) {
-    transform_declaration(cur);
+void transform_variable_definition(struct declaration *decl) {
+  transform_specifier_list(decl->_var.specifiers);
+  transform_init_declarator_list(decl->_var.init_declarator_list);
+}
+
+void transform_function_definition(struct declaration *decl) {
+  transform_specifier_list(decl->_func.specifiers);
+  transform_id(decl->_func.name);
+
+  if (decl->_func.parameters)
+    transform_declaration_list(decl->_func.parameters);
+
+  transform_statement(decl->_func.body);
+}
+
+void transform_type_definition(struct declaration *decl) {
+  transform_specifier_list(decl->_type_def.specifiers);
+  transform_id(decl->_type_def.name);
+}
+
+void transform_declaration(struct declaration *decl) {
+  switch (decl->type) {
+  case VARIABLE:
+    transform_variable_definition(decl);
+    break;
+  case FUNCTION:
+    transform_function_definition(decl);
+    break;
+  case TYPEDEF:
+    transform_type_definition(decl);
+    break;
+  default:
+    CRITICAL("ast", "Unknown declaration type");
   }
 }
 
 void transform_break_stmt(struct statement *stmt) { UNUSED(stmt); }
 
 void transform_statement_list(struct statement_list *list) {
+  if (list == NULL)
+    return;
+
   for (struct statement *child = list->head; child != NULL;
        child = child->next) {
     transform_statement(child);
@@ -325,7 +357,8 @@ void short_circuit_binary_expr(struct expression *expr) {
   };
 
   ternary._ternary.condition = expr->_binary.left;
-  ternary._ternary.true_branch = is_and ? expr->_binary.right : create_const_expression(&true_token);
+  ternary._ternary.true_branch =
+      is_and ? expr->_binary.right : create_const_expression(&true_token);
   ternary._ternary.false_branch =
       is_and ? create_const_expression(&false_token) : expr->_binary.right;
 

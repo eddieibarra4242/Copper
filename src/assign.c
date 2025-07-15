@@ -78,6 +78,7 @@ void specifier_list(struct specifier_list *list) {
 
 void statement(struct statement *stmt);
 void expression(struct expression *expr);
+void declaration(struct declaration *decl);
 
 void initialized_declarator(struct initialized_declarator *decl) {
   id(decl->declarator);
@@ -87,31 +88,59 @@ void initialized_declarator(struct initialized_declarator *decl) {
 }
 
 void init_declarator_list(struct init_declarator_list *list) {
+  if (list == NULL)
+    return;
+
   for (struct initialized_declarator *cur = list->head; cur != NULL;
        cur = cur->next) {
     initialized_declarator(cur);
   }
 }
 
-void declaration(struct declaration *decl) {
-  if (decl->specifiers)
-    specifier_list(decl->specifiers);
+void declaration_list(struct declaration_list *list) {
+  struct declaration *cur = list->head;
+  struct declaration *next = NULL;
 
-  if (decl->name)
-    id(decl->name);
-
-  if (decl->body) {
-    statement(decl->body);
-  }
-
-  if (decl->init_declarator_list) {
-    init_declarator_list(decl->init_declarator_list);
+  while (cur) {
+    next = cur->next;
+    declaration(cur);
+    cur = next;
   }
 }
 
-void declaration_list(struct declaration_list *list) {
-  for (struct declaration *cur = list->head; cur != NULL; cur = cur->next) {
-    declaration(cur);
+void variable_definition(struct declaration *decl) {
+  specifier_list(decl->_var.specifiers);
+  init_declarator_list(decl->_var.init_declarator_list);
+}
+
+void function_definition(struct declaration *decl) {
+  specifier_list(decl->_func.specifiers);
+  id(decl->_func.name);
+
+  if (decl->_func.parameters)
+    declaration_list(decl->_func.parameters);
+
+  statement(decl->_func.body);
+}
+
+void type_definition(struct declaration *decl) {
+  specifier_list(decl->_type_def.specifiers);
+  id(decl->_type_def.name);
+}
+
+void declaration(struct declaration *decl) {
+  switch (decl->type) {
+  case VARIABLE:
+    variable_definition(decl);
+    break;
+  case FUNCTION:
+    function_definition(decl);
+    break;
+  case TYPEDEF:
+    type_definition(decl);
+    break;
+  default:
+    CRITICAL("assign", "Unknown declaration type");
   }
 }
 
@@ -326,10 +355,12 @@ void count_unary_expr(struct expression *expr) {
 
   if (expr->_unary.base) {
     count_expression(expr->_unary.base);
-  }
 
-  // reuse base reg
-  expr->reg_count = expr->_unary.base->reg_count;
+    // reuse base reg
+    expr->reg_count = expr->_unary.base->reg_count;
+  } else {
+    expr->reg_count = 0;
+  }
 }
 
 void count_cast_expr(struct expression *expr) {
@@ -524,10 +555,12 @@ void assign_unary_expr(struct expression *expr) {
 
   if (expr->_unary.base) {
     assign_expression(expr->_unary.base);
-  }
 
-  // reuse base reg
-  expr->reg = expr->_unary.base->reg;
+    // reuse base reg
+    expr->reg = expr->_unary.base->reg;
+  } else {
+    expr->reg = next_reg;
+  }
 }
 
 void assign_cast_expr(struct expression *expr) {
