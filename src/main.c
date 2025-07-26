@@ -11,6 +11,7 @@
 #include "symbol.h"
 #include "transforms.h"
 #include "tree.h"
+#include "backend.h"
 
 int main(int args, char **argv) {
   if (args < 2) {
@@ -90,6 +91,8 @@ int main(int args, char **argv) {
 #ifndef NDEBUG
   debug_insns(ir_insns);
 #endif
+
+  output_insns(ir_insns);
 
   destroy_instruction_list(ir_insns);
   free_generated_labels();

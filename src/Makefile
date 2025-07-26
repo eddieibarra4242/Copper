@@ -15,10 +15,13 @@ LINK_FLAGS += -ggdb
 # CFLAGS += -O2 -DNDEBUG
 # LINK_FLAGS += -O2
 
+# Define the target architecture.
+CFLAGS += -DCU_USE_X86
+
 OUTPUT_NAME = cu
 
 OBJ_FILES = main.o log.o scanner.o parser.o tree.o debug_ast.o assign.o utils.o
-OBJ_FILES += symbol.o instruction.o emit.o debug_insn.o transforms.o
+OBJ_FILES += symbol.o instruction.o emit.o debug_insn.o transforms.o backends/x86.o
 
 all: mkdirs $(OBJ_FILES)
 	$(CC) $(OBJ_FILES:%=../bin/int/%) -o ../bin/$(OUTPUT_NAME) $(LINK_FLAGS)
@@ -29,7 +32,7 @@ all: mkdirs $(OBJ_FILES)
 
 mkdirs:
 	mkdir -p ../debug
-	mkdir -p ../bin/int
+	mkdir -p ../bin/int/backends
 
 parser.c: parser.y
 	$(BISON) --color=yes --output parser.c parser.y

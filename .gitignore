@@ -3,3 +3,4 @@ debug/
 .vscode/
 src/parser.c
 *.runner.c
+sandbox/

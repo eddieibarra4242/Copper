@@ -14,11 +14,17 @@
 #define INFO(section, msg, ...)                                                \
   log_message(INFO_LEVEL, section, msg, __FILE__, __LINE__, __VA_ARGS__)
 
+#define WARN(section, msg)                                                     \
+  log_message(WARNING_LEVEL, section, msg, __FILE__, __LINE__);
+
 #define ERROR(section, msg)                                                    \
   log_message(ERROR_LEVEL, section, msg, __FILE__, __LINE__);
 
 #define CRITICAL(section, msg)                                                 \
   log_message(CRITICAL_LEVEL, section, msg, __FILE__, __LINE__);
+
+#define WARNV(section, msg, ...)                                               \
+  log_message(WARNING_LEVEL, section, msg, __FILE__, __LINE__, __VA_ARGS__);
 
 #define ERRORV(section, msg, ...)                                              \
   log_message(ERROR_LEVEL, section, msg, __FILE__, __LINE__, __VA_ARGS__);
