@@ -3,15 +3,20 @@
 #include <test_utils.h>
 #include <unity.h>
 
+Token *tokens;
+
 void setUp(void) { reset_log_checks(); }
 
 void tearDown(void) {
-  // clean stuff up here
+  if (tokens) {
+    free_list(tokens);
+    tokens = NULL;
+  }
 }
 
 void test_simple_program(void) {
   const char *input = "int main() {}";
-  Token *tokens = scan(input);
+  tokens = scan(input);
 
   size_t list_length = get_token_list_length(tokens);
 
@@ -29,20 +34,16 @@ void test_simple_program(void) {
   k.span.end.column = 4;
 
   assert_token_equal(&k, cur);
-
-  free_list(tokens);
 }
 
 void test_eof(void) {
   const char *input = "";
-  Token *tokens = scan(input);
+  tokens = scan(input);
 
   size_t list_length = get_token_list_length(tokens);
 
   TEST_ASSERT_EQUAL(1, list_length);
   TEST_ASSERT_EQUAL(EOF, tokens->kind);
-
-  free_list(tokens);
 }
 
 void test_keywords(void) {
@@ -55,7 +56,7 @@ void test_keywords(void) {
                       "unsigned void volatile while _Atomic _BitInt\n"
                       "_Complex _Decimal128 _Decimal32 _Decimal64 _Generic\n"
                       "_Imaginary _Noreturn\n";
-  Token *tokens = scan(input);
+  tokens = scan(input);
 
   size_t list_length = get_token_list_length(tokens);
 
@@ -72,7 +73,7 @@ void test_keywords(void) {
 
 void test_predefined_constants(void) {
   const char *input = "false nullptr true\n";
-  Token *tokens = scan(input);
+  tokens = scan(input);
 
   size_t list_length = get_token_list_length(tokens);
 
@@ -89,7 +90,7 @@ void test_predefined_constants(void) {
 
 void test_identifier(void) {
   const char *input = "a bcd __this_is_an_identifier__ he110";
-  Token *tokens = scan(input);
+  tokens = scan(input);
 
   size_t list_length = get_token_list_length(tokens);
 
@@ -101,36 +102,30 @@ void test_identifier(void) {
 
     TEST_ASSERT_EQUAL(IDENTIFIER, cur->kind);
   }
-
-  free_list(tokens);
 }
 
 void test_regular_comment(void) {
   const char *input = "// this is a regular comment";
-  Token *tokens = scan(input);
+  tokens = scan(input);
 
   size_t list_length = get_token_list_length(tokens);
 
   TEST_ASSERT_EQUAL(1, list_length);
-
-  free_list(tokens);
 }
 
 void test_inline_comment(void) {
   const char *input = "int hello /* This is\n"
                       "a comment */ hi how are you?";
-  Token *tokens = scan(input);
+  tokens = scan(input);
 
   size_t list_length = get_token_list_length(tokens);
 
   TEST_ASSERT_EQUAL(8, list_length);
-
-  free_list(tokens);
 }
 
 void test_constants(void) {
   const char *input = "0 10 0b11'11'11 0xabcdef0123456789 0'7'2'3";
-  Token *tokens = scan(input);
+  tokens = scan(input);
 
   size_t list_length = get_token_list_length(tokens);
 
@@ -165,7 +160,7 @@ void test_binary_separator_end_failure(void) {
   const char *input = "0b11'";
 
   expect_error("Unexpected character ''' at 1:5, expected: [0, 1]");
-  Token *tokens = scan(input);
+  tokens = scan(input);
 
   size_t list_length = get_token_list_length(tokens);
   printf("%zu\n", list_length);
@@ -218,7 +213,7 @@ void test_int_prefix(void) {
                       "0U 0Ul 0UL 0Ull 0ULL 0Uwb 0UWB\n"
                       "0u 0lu 0Lu 0llu 0LLu 0wbu 0WBu\n"
                       "0U 0lU 0LU 0llU 0LLU 0wbU 0WBU\n";
-  Token *tokens = scan(input);
+  tokens = scan(input);
 
   size_t list_length = get_token_list_length(tokens);
 
@@ -249,7 +244,7 @@ void test_ll_failure(void) {
 
 void test_float(void) {
   const char *input = "0. .0dd 0x.abp-12DD";
-  Token *tokens = scan(input);
+  tokens = scan(input);
 
   size_t list_length = get_token_list_length(tokens);
 
@@ -268,7 +263,7 @@ void test_float(void) {
 
 void test_chars(void) {
   const char *input = "u8'\\uabcd' u'\\x12ef' L'\\777' '\\a' 'f' 'a' '$' '@'";
-  Token *tokens = scan(input);
+  tokens = scan(input);
 
   size_t list_length = get_token_list_length(tokens);
 
@@ -285,7 +280,7 @@ void test_chars(void) {
 
 void test_char_newline_failure(void) {
   const char *input = "'\n'";
-  expect_error("Unexpected character '.' at 1:2, expected: [a char]");
+  expect_error("Unexpected character '.' at 2:0, expected: [a char]");
   scan(input);
   TEST_FAIL_MESSAGE("No error detected!");
 }
@@ -299,7 +294,7 @@ void test_punctuation(void) {
                       "? : :: ; ... = *= /= %= +=\n"
                       "-= <<= >>= &= ^= |= , # ## <:\n"
                       ":> <% %> %: %:%:";
-  Token *tokens = scan(input);
+  tokens = scan(input);
 
   size_t list_length = get_token_list_length(tokens);
 
@@ -316,7 +311,7 @@ void test_punctuation(void) {
 
 void test_percent_failure(void) {
   const char *input = "%:%";
-  expect_error("Unexpected character '.' at 1:4, expected: [:]");
+  expect_error("Unexpected character '\xFF' at 1:4, expected: [:]");
   scan(input);
   TEST_FAIL_MESSAGE("No error detected!");
 }
@@ -325,7 +320,7 @@ void test_strings(void) {
   const char *input = "u8\"\\uabcdfdsafdsa\" u\"\\x12effdsafdsa\"\n"
                       "L\"\\777fdsafdsa\" \"\\aasd\" \"f\" \"affds\"\n"
                       "\"$as4523\" \"@12\"";
-  Token *tokens = scan(input);
+  tokens = scan(input);
 
   size_t list_length = get_token_list_length(tokens);
 
@@ -342,16 +337,41 @@ void test_strings(void) {
 
 void test_string_newline_failure(void) {
   const char *input = "\"\n\"";
-  expect_error("Unexpected character '.' at 1:2, expected: [\"]");
+  expect_error("Unexpected character '.' at 2:0, expected: [\"]");
   scan(input);
   TEST_FAIL_MESSAGE("No error detected!");
+}
+
+void test_newline_in_identifier(void) {
+  const char *input = "int mai\\\nn() {}";
+  tokens = scan(input);
+
+  size_t list_length = get_token_list_length(tokens);
+
+  // 6 tokens: int, main, (, ), {, }
+  TEST_ASSERT_EQUAL(7, list_length);
+
+  Token *cur = tokens;
+  TEST_ASSERT_EQUAL(KEYWORD, cur->kind);
+  cur = cur->next;
+  TEST_ASSERT_EQUAL(IDENTIFIER, cur->kind);
+  cur = cur->next;
+  TEST_ASSERT_EQUAL(PUNCT, cur->kind);
+  cur = cur->next;
+  TEST_ASSERT_EQUAL(PUNCT, cur->kind);
+  cur = cur->next;
+  TEST_ASSERT_EQUAL(PUNCT, cur->kind);
+  cur = cur->next;
+  TEST_ASSERT_EQUAL(PUNCT, cur->kind);
+  cur = cur->next;
+  TEST_ASSERT_EQUAL(EOF, cur->kind);
 }
 
 // TODO: need more string tests.
 
 void test_regression_long_t(void) {
   const char *input = "long_t";
-  Token *tokens = scan(input);
+  tokens = scan(input);
 
   // Old scanner implementation tokenized `long_t` as a keyword.
   TEST_ASSERT_NOT_EQUAL(KEYWORD, tokens->kind);

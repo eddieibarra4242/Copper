@@ -594,7 +594,7 @@ struct id *register_type(struct id *new_type);
 %%
 
 Token *cur;
-Token *next;
+Token *next_token;
 
 struct type_alias {
   const char *type_name;
@@ -608,86 +608,86 @@ void init_parser(Token *list) {
   yydebug = 1;
 #endif
   cur = NULL;
-  next = list;
+  next_token = list;
 }
 
 void free_type_alias_memory(void) {
   struct type_alias *cur = alias_list;
-  struct type_alias *next = NULL;
+  struct type_alias *next_token = NULL;
 
   while (cur) {
-    next = cur->next;
+    next_token = cur->next;
     free(cur);
-    cur = next;
+    cur = next_token;
   }
 }
 
 int get_keyword() {
-  if (!next)
+  if (!next_token)
     return YYUNDEF;
 
-  if (strcmp(next->data, "alignas") == 0) return K_alignas;
-  if (strcmp(next->data, "alignof") == 0) return K_alignof;
-  if (strcmp(next->data, "auto") == 0) return K_auto;
-  if (strcmp(next->data, "bool") == 0) return K_bool;
-  if (strcmp(next->data, "break") == 0) return K_break;
-  if (strcmp(next->data, "case") == 0) return K_case;
-  if (strcmp(next->data, "char") == 0) return K_char;
-  if (strcmp(next->data, "const") == 0) return K_const;
-  if (strcmp(next->data, "constexpr") == 0) return K_constexpr;
-  if (strcmp(next->data, "continue") == 0) return K_continue;
-  if (strcmp(next->data, "default") == 0) return K_default;
-  if (strcmp(next->data, "do") == 0) return K_do;
-  if (strcmp(next->data, "double") == 0) return K_double;
-  if (strcmp(next->data, "else") == 0) return K_else;
-  if (strcmp(next->data, "enum") == 0) return K_enum;
-  if (strcmp(next->data, "extern") == 0) return K_extern;
-  if (strcmp(next->data, "float") == 0) return K_float;
-  if (strcmp(next->data, "for") == 0) return K_for;
-  if (strcmp(next->data, "goto") == 0) return K_goto;
-  if (strcmp(next->data, "if") == 0) return K_if;
-  if (strcmp(next->data, "inline") == 0) return K_inline;
-  if (strcmp(next->data, "int") == 0) return K_int;
-  if (strcmp(next->data, "long") == 0) return K_long;
-  if (strcmp(next->data, "register") == 0) return K_register;
-  if (strcmp(next->data, "restrict") == 0) return K_restrict;
-  if (strcmp(next->data, "return") == 0) return K_return;
-  if (strcmp(next->data, "short") == 0) return K_short;
-  if (strcmp(next->data, "signed") == 0) return K_signed;
-  if (strcmp(next->data, "sizeof") == 0) return K_sizeof;
-  if (strcmp(next->data, "static") == 0) return K_static;
-  if (strcmp(next->data, "static_assert") == 0) return K_static_assert;
-  if (strcmp(next->data, "struct") == 0) return K_struct;
-  if (strcmp(next->data, "switch") == 0) return K_switch;
-  if (strcmp(next->data, "thread_local") == 0) return K_thread_local;
-  if (strcmp(next->data, "typedef") == 0) return K_typedef;
-  if (strcmp(next->data, "typeof") == 0) return K_typeof;
-  if (strcmp(next->data, "typeof_unqual") == 0) return K_typeof_unqual;
-  if (strcmp(next->data, "union") == 0) return K_union;
-  if (strcmp(next->data, "unsigned") == 0) return K_unsigned;
-  if (strcmp(next->data, "void") == 0) return K_void;
-  if (strcmp(next->data, "volatile") == 0) return K_volatile;
-  if (strcmp(next->data, "while") == 0) return K_while;
-  if (strcmp(next->data, "_Atomic") == 0) return K__Atomic;
-  if (strcmp(next->data, "_BitInt") == 0) return K__BitInt;
-  if (strcmp(next->data, "_Complex") == 0) return K__Complex;
-  if (strcmp(next->data, "_Decimal128") == 0) return K__Decimal128;
-  if (strcmp(next->data, "_Decimal32") == 0) return K__Decimal32;
-  if (strcmp(next->data, "_Decimal64") == 0) return K__Decimal64;
-  if (strcmp(next->data, "_Generic") == 0) return K__Generic;
-  if (strcmp(next->data, "_Imaginary") == 0) return K__Imaginary;
-  if (strcmp(next->data, "_Noreturn") == 0) return K__Noreturn;
+  if (strcmp(next_token->data, "alignas") == 0) return K_alignas;
+  if (strcmp(next_token->data, "alignof") == 0) return K_alignof;
+  if (strcmp(next_token->data, "auto") == 0) return K_auto;
+  if (strcmp(next_token->data, "bool") == 0) return K_bool;
+  if (strcmp(next_token->data, "break") == 0) return K_break;
+  if (strcmp(next_token->data, "case") == 0) return K_case;
+  if (strcmp(next_token->data, "char") == 0) return K_char;
+  if (strcmp(next_token->data, "const") == 0) return K_const;
+  if (strcmp(next_token->data, "constexpr") == 0) return K_constexpr;
+  if (strcmp(next_token->data, "continue") == 0) return K_continue;
+  if (strcmp(next_token->data, "default") == 0) return K_default;
+  if (strcmp(next_token->data, "do") == 0) return K_do;
+  if (strcmp(next_token->data, "double") == 0) return K_double;
+  if (strcmp(next_token->data, "else") == 0) return K_else;
+  if (strcmp(next_token->data, "enum") == 0) return K_enum;
+  if (strcmp(next_token->data, "extern") == 0) return K_extern;
+  if (strcmp(next_token->data, "float") == 0) return K_float;
+  if (strcmp(next_token->data, "for") == 0) return K_for;
+  if (strcmp(next_token->data, "goto") == 0) return K_goto;
+  if (strcmp(next_token->data, "if") == 0) return K_if;
+  if (strcmp(next_token->data, "inline") == 0) return K_inline;
+  if (strcmp(next_token->data, "int") == 0) return K_int;
+  if (strcmp(next_token->data, "long") == 0) return K_long;
+  if (strcmp(next_token->data, "register") == 0) return K_register;
+  if (strcmp(next_token->data, "restrict") == 0) return K_restrict;
+  if (strcmp(next_token->data, "return") == 0) return K_return;
+  if (strcmp(next_token->data, "short") == 0) return K_short;
+  if (strcmp(next_token->data, "signed") == 0) return K_signed;
+  if (strcmp(next_token->data, "sizeof") == 0) return K_sizeof;
+  if (strcmp(next_token->data, "static") == 0) return K_static;
+  if (strcmp(next_token->data, "static_assert") == 0) return K_static_assert;
+  if (strcmp(next_token->data, "struct") == 0) return K_struct;
+  if (strcmp(next_token->data, "switch") == 0) return K_switch;
+  if (strcmp(next_token->data, "thread_local") == 0) return K_thread_local;
+  if (strcmp(next_token->data, "typedef") == 0) return K_typedef;
+  if (strcmp(next_token->data, "typeof") == 0) return K_typeof;
+  if (strcmp(next_token->data, "typeof_unqual") == 0) return K_typeof_unqual;
+  if (strcmp(next_token->data, "union") == 0) return K_union;
+  if (strcmp(next_token->data, "unsigned") == 0) return K_unsigned;
+  if (strcmp(next_token->data, "void") == 0) return K_void;
+  if (strcmp(next_token->data, "volatile") == 0) return K_volatile;
+  if (strcmp(next_token->data, "while") == 0) return K_while;
+  if (strcmp(next_token->data, "_Atomic") == 0) return K__Atomic;
+  if (strcmp(next_token->data, "_BitInt") == 0) return K__BitInt;
+  if (strcmp(next_token->data, "_Complex") == 0) return K__Complex;
+  if (strcmp(next_token->data, "_Decimal128") == 0) return K__Decimal128;
+  if (strcmp(next_token->data, "_Decimal32") == 0) return K__Decimal32;
+  if (strcmp(next_token->data, "_Decimal64") == 0) return K__Decimal64;
+  if (strcmp(next_token->data, "_Generic") == 0) return K__Generic;
+  if (strcmp(next_token->data, "_Imaginary") == 0) return K__Imaginary;
+  if (strcmp(next_token->data, "_Noreturn") == 0) return K__Noreturn;
 
   return YYUNDEF;
 }
 
 int get_punct() {
-  if (!next)
+  if (!next_token)
     return YYUNDEF;
 
-  const char *comp = next->data;
+  const char *comp = next_token->data;
 
-  if (next->length == 1) {
+  if (next_token->length == 1) {
     return comp[0];
   }
 
@@ -751,7 +751,7 @@ struct id *register_type(struct id *new_type) {
 
 int is_next_type_alias(void) {
   for (struct type_alias *cur = alias_list; cur != NULL; cur = cur->next) {
-    if (strcmp(next->data, cur->type_name) == 0) {
+    if (strcmp(next_token->data, cur->type_name) == 0) {
       return TYPE_ALIAS;
     }
   }
@@ -761,13 +761,13 @@ int is_next_type_alias(void) {
 }
 
 int yylex(void) {
-  if (!next)
+  if (!next_token)
     return YYUNDEF;
 
   int ret = YYUNDEF;
 
-  yylval.tokenval = next;
-  switch (next->kind) {
+  yylval.tokenval = next_token;
+  switch (next_token->kind) {
   case IDENTIFIER:
     ret = ID;
     break;
@@ -792,8 +792,8 @@ int yylex(void) {
     ret = is_next_type_alias();
   }
 
-  cur = next;
-  next = next->next;
+  cur = next_token;
+  next_token = next_token->next;
 
   return ret;
 }

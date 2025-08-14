@@ -8,14 +8,14 @@
 
 #define SCANNER_ERROR(expected_list)                                           \
   do {                                                                         \
-    Coord pos = calc_coord(i);                                                 \
-    char found = file[i];                                                      \
+    Coord pos = get_current_coord();                                           \
+    char found = current();                                                    \
     found = found == 0 ? '.' : found;                                          \
     found = found == '\n' ? '.' : found;                                       \
     ERRORV("scanner",                                                          \
            "Unexpected character '%c' at %zu:%zu, expected: [" expected_list   \
            "]",                                                                \
-           found != 0 ? found : (char)(-1), pos.line_number, pos.column);      \
+           found, pos.line_number, pos.column);                                \
   } while (0)
 
 const char *keywords[] = {
@@ -40,49 +40,122 @@ const char *predefined_constants[] = {
   "true",
 };
 
-size_t seen_newlines = 0;
-long last_newline = -1;
+struct ScannerState {
+  size_t seen_newlines;
+  long last_newline;
 
-void record_newline(size_t i) {
-  seen_newlines++;
-  last_newline = (long)i;
+  size_t cur;
+
+  const char *file;
+  size_t file_length;
+} state;
+
+void initialize_scanner_state(const char *file) {
+  state.seen_newlines = 0;
+  state.last_newline = -1;
+  state.cur = 0;
+
+  state.file = file;
+  state.file_length = strlen(file);
 }
 
-Coord calc_coord(size_t i) {
+void record_newline(void) {
+  state.seen_newlines++;
+  state.last_newline = (long)state.cur;
+}
+
+char last(void) { return state.cur > 0 ? state.file[state.cur - 1] : EOF; }
+
+char current(void) {
+  return state.cur < state.file_length ? state.file[state.cur] : EOF;
+}
+
+char peek(void) {
+  return state.cur < state.file_length - 1 ? state.file[state.cur + 1] : EOF;
+}
+
+void next(void) {
+  state.cur++;
+
+  if (current() == '\n') {
+    record_newline();
+  }
+
+  if (state.file_length - state.cur >= 2 && state.file[state.cur] == '\\' &&
+      state.file[state.cur + 1] == '\n') {
+    state.cur++; // skip the backslash
+    record_newline();
+    state.cur++; // skip the newline
+  }
+}
+
+Coord get_current_coord(void) {
   Coord result;
 
-  result.line_number = seen_newlines + 1;
-  result.column = (size_t)((long)i - last_newline);
+  result.line_number = state.seen_newlines + 1;
+  result.column = (size_t)((long)state.cur - state.last_newline);
 
   return result;
 }
 
-bool is_nondigit(char character) {
+bool is_nondigit(void) {
+  char character = current();
   return ('A' <= character && character <= 'Z') ||
          ('a' <= character && character <= 'z') || character == '_';
 }
 
+#define BIN_DIGIT_SEQ "0, 1"
+bool is_binary_digit(void) {
+  char character = current();
+  return character == '0' || character == '1';
+}
+
+bool is_char_binary_digit(char character) {
+  return character == '0' || character == '1';
+}
+
 #define OCT_DIGIT_SEQ "0-7"
-bool is_octal_digit(char character) {
+bool is_octal_digit(void) {
+  char character = current();
+  return ('0' <= character && character <= '7');
+}
+
+bool is_char_octal_digit(char character) {
   return ('0' <= character && character <= '7');
 }
 
 #define NON_ZERO_SEQ "1-9"
-bool is_nonzero_digit(char character) {
+bool is_nonzero_digit(void) {
+  char character = current();
   return ('1' <= character && character <= '9');
 }
 
 #define DEC_DIGIT_SEQ "0-9"
-bool is_digit(char character) { return ('0' <= character && character <= '9'); }
+bool is_digit(void) {
+  char character = current();
+  return ('0' <= character && character <= '9');
+}
+
+bool is_char_digit(char character) {
+  return ('0' <= character && character <= '9');
+}
 
 #define HEX_DIGIT_SEQ "0-9, a-f, A-F"
-bool is_hex_digit(char character) {
+bool is_hex_digit(void) {
+  char character = current();
   return ('0' <= character && character <= '9') ||
          ('a' <= character && character <= 'f') ||
          ('A' <= character && character <= 'F');
 }
 
-bool is_whitespace(char character) {
+bool is_char_hex_digit(char character) {
+  return ('0' <= character && character <= '9') ||
+         ('a' <= character && character <= 'f') ||
+         ('A' <= character && character <= 'F');
+}
+
+bool is_whitespace(void) {
+  char character = current();
   return character == ' ' || character == '\t' || character == '\r' ||
          character == '\n' || character == '\v' || character == '\f';
 }
@@ -103,608 +176,482 @@ bool is_in_array(const char *value, size_t value_length, const char *array[],
   return false;
 }
 
-size_t scan_whitespace(const char *file, size_t index) {
-  size_t i = index;
-
-  while (file[i] != '\0' && is_whitespace(file[i])) {
-    if (file[i] == '\n') {
-      record_newline(i);
-    }
-
-    i++;
+void scan_whitespace(void) {
+  while (current() != EOF && is_whitespace()) {
+    next();
   }
-
-  return i;
 }
 
-size_t scan_reg_comment(const char *file, size_t index) {
-  size_t i = index;
-
-  while (file[i] != '\0' && file[i] != '\n') {
-    i++;
+void scan_reg_comment(void) {
+  while (current() != EOF && current() != '\n') {
+    next();
   }
-
-  return i;
 }
 
-size_t scan_inline_comment(const char *file, size_t index) {
-  size_t i = index;
+void scan_inline_comment(void) {
+  while (current() != EOF) {
+    if (current() == '*') {
+      next();
 
-  while (file[i] != '\0') {
-    if (file[i] == '*') {
-      i++;
-
-      if (file[i] == '/') {
-        i++;
+      if (current() == '/') {
+        next();
         break;
       }
     } else {
-      i++;
+      next();
     }
   }
-
-  return i;
 }
 
-size_t scan_identifier(const char *file, size_t index) {
-  size_t i = index;
-
-  while (is_nondigit(file[i]) || is_digit(file[i])) {
-    i++;
+void scan_identifier(void) {
+  while (is_nondigit() || is_digit()) {
+    next();
   }
-
-  return i;
 }
 
-size_t scan_hex_quad(const char *file, size_t index) {
-  size_t i = index;
-
-  while ((i - index) < 4) {
-    if (is_hex_digit(file[i])) {
-      i++;
+void scan_hex_quad(void) {
+  size_t start_index = state.cur;
+  while ((state.cur - start_index) < 4) {
+    if (is_hex_digit()) {
+      next();
     } else {
       SCANNER_ERROR(HEX_DIGIT_SEQ);
     }
   }
-
-  return i;
 }
 
-size_t scan_universal_character(const char *file, size_t index) {
-  size_t i = index;
-
-  if (file[i] == '\\') {
-    i++;
+void scan_universal_character(void) {
+  if (current() == '\\') {
+    next();
   } else {
     SCANNER_ERROR("\\");
   }
 
-  if (file[i] == 'u') {
-    i++;
-    return scan_hex_quad(file, i);
-  } else if (file[i] == 'U') {
-    i++;
-    i = scan_hex_quad(file, i);
-    return scan_hex_quad(file, i);
-  } else {
+  char size = current();
+  next();
+
+  if (size == 'U') {
+    scan_hex_quad();
+  } else if (size != 'u') {
     SCANNER_ERROR("u, U");
   }
 
-  return i;
+  scan_hex_quad();
 }
 
-size_t scan_sign(const char *file, size_t index) {
-  if (file[index] == '+') {
-    return index + 1;
-  } else if (file[index] == '-') {
-    return index + 1;
+void scan_sign(void) {
+  if (current() == '+' || current() == '-') {
+    next();
   }
-
-  return index;
 }
 
-size_t scan_floating_suffix(const char *file, size_t index) {
-  static const char *suffixes[] = {
-    "f", "l", "F", "L", "df", "dd", "dl", "DF", "DD", "DL",
-  };
+void scan_floating_suffix(void) {
+  static const char *suffixes[] = {"f",  "l",  "F",  "L",  "df",
+                                   "dd", "dl", "DF", "DD", "DL"};
+
+  size_t found_length = 0;
 
   for (size_t i = 0; i < NELEMS(suffixes); i++) {
     size_t length = strlen(suffixes[i]);
-    if (memcmp(&file[index], suffixes[i], length) == 0) {
-      return index + length;
+    if (memcmp(&state.file[state.cur], suffixes[i], length) == 0) {
+      found_length = length;
+      break;
     }
   }
 
-  return index;
+  for (size_t i = 0; i < found_length; i++) {
+    next();
+  }
 }
 
-size_t scan_digit_seq(const char *file, size_t index) {
-  size_t i = index;
-
-  if (is_digit(file[i])) {
-    i++;
+void scan_digit_seq(void) {
+  if (is_digit()) {
+    next();
   } else {
     SCANNER_ERROR(DEC_DIGIT_SEQ);
   }
 
-  while (is_digit(file[i]) || file[i] == '\'') {
-    i++;
+  while (is_digit() || current() == '\'') {
+    next();
   }
 
-  i--;
-  if (is_digit(file[i])) {
-    i++;
-  } else {
+  if (!is_char_digit(last())) {
+    state.cur--;
     SCANNER_ERROR(DEC_DIGIT_SEQ);
   }
-
-  return i;
 }
 
-size_t scan_hex_digit_seq(const char *file, size_t index) {
-  size_t i = index;
-
-  if (is_hex_digit(file[i])) {
-    i++;
+void scan_hex_digit_seq(void) {
+  if (is_hex_digit()) {
+    next();
   } else {
     SCANNER_ERROR(HEX_DIGIT_SEQ);
   }
 
-  while (is_hex_digit(file[i]) || file[i] == '\'') {
-    i++;
+  while (is_hex_digit() || current() == '\'') {
+    next();
   }
 
-  i--;
-  if (is_hex_digit(file[i])) {
-    i++;
-  } else {
+  if (!is_char_hex_digit(last())) {
+    state.cur--;
     SCANNER_ERROR(HEX_DIGIT_SEQ);
   }
-
-  return i;
 }
 
-size_t scan_binary_exp(const char *file, size_t index) {
-  size_t i = index;
-
-  if (file[i] == 'p' || file[i] == 'P') {
-    i++;
+void scan_binary_exp(void) {
+  if (current() == 'p' || current() == 'P') {
+    next();
   }
 
-  i = scan_sign(file, i);
-
-  return scan_digit_seq(file, i);
+  scan_sign();
+  scan_digit_seq();
 }
 
-size_t scan_exp(const char *file, size_t index) {
-  size_t i = index;
-
-  if (file[i] == 'e' || file[i] == 'E') {
-    i++;
+void scan_exp(void) {
+  if (current() == 'e' || current() == 'E') {
+    next();
   } else {
     SCANNER_ERROR("e, E");
   }
 
-  i = scan_sign(file, i);
-
-  return scan_digit_seq(file, i);
+  scan_sign();
+  scan_digit_seq();
 }
 
-size_t scan_fractional_const(const char *file, size_t index) {
-  size_t i = index;
+void scan_fractional_const(void) { scan_digit_seq(); }
 
-  if (file[i] == '.') {
-    i++;
+void scan_period(void) {
+  if (current() == '.') {
+    next();
   } else {
     SCANNER_ERROR(".");
   }
 
-  return scan_digit_seq(file, i);
+  if (is_digit()) {
+    scan_fractional_const();
+  }
 }
 
-size_t scan_period(const char *file, size_t index) {
-  size_t i = index;
-
-  if (file[i] == '.') {
-    i++;
+void scan_hex_fractional_const(void) {
+  if (current() == '.') {
+    next();
   } else {
     SCANNER_ERROR(".");
   }
 
-  if (is_digit(file[i])) {
-    return scan_fractional_const(file, index);
-  }
-
-  return i;
+  scan_hex_digit_seq();
 }
 
-size_t scan_hex_fractional_const(const char *file, size_t index) {
-  size_t i = index;
+void scan_int_prefix_rest(void) {
+  if (current() == 'w') {
+    next();
 
-  if (file[i] == '.') {
-    i++;
-  } else {
-    SCANNER_ERROR(".");
-  }
-
-  return scan_hex_digit_seq(file, i);
-}
-
-size_t scan_hex_fractional_const_opt(const char *file, size_t index) {
-  size_t i = index;
-
-  if (file[i] == '.') {
-    i++;
-  } else {
-    SCANNER_ERROR(".");
-  }
-
-  if (is_hex_digit(file[i])) {
-    return scan_fractional_const(file, index);
-  }
-
-  return i;
-}
-
-size_t scan_int_prefix_rest(const char *file, size_t index) {
-  size_t i = index;
-
-  if (file[i] == 'w') {
-    i++;
-
-    if (file[i] == 'b') {
-      i++;
+    if (current() == 'b') {
+      next();
     } else {
       SCANNER_ERROR("b");
     }
-  } else if (file[i] == 'W') {
-    i++;
+  } else if (current() == 'W') {
+    next();
 
-    if (file[i] == 'B') {
-      i++;
+    if (current() == 'B') {
+      next();
     } else {
       SCANNER_ERROR("B");
     }
-  } else if (file[i] == 'l') {
-    i++;
+  } else if (current() == 'l') {
+    next();
 
-    if (file[i] == 'l') {
-      i++;
-    } else if (file[i] == 'L') {
+    if (current() == 'l') {
+      next();
+    } else if (current() == 'L') {
       SCANNER_ERROR("l");
     }
-  } else if (file[i] == 'L') {
-    i++;
+  } else if (current() == 'L') {
+    next();
 
-    if (file[i] == 'L') {
-      i++;
-    } else if (file[i] == 'l') {
+    if (current() == 'L') {
+      next();
+    } else if (current() == 'l') {
       SCANNER_ERROR("L");
     }
   }
-
-  return i;
 }
 
-size_t scan_int_prefix_ufirst(const char *file, size_t index) {
-  size_t i = index;
-
-  if (file[index] == 'u' || file[index] == 'U') {
-    i++;
+void scan_int_prefix_ufirst(void) {
+  if (current() == 'u' || current() == 'U') {
+    next();
   }
 
-  return scan_int_prefix_rest(file, i);
+  scan_int_prefix_rest();
 }
 
-size_t scan_int_prefix_ulast(const char *file, size_t index) {
-  size_t i = scan_int_prefix_rest(file, index);
+void scan_int_prefix_ulast(void) {
+  scan_int_prefix_rest();
 
-  if (file[i] == 'u' || file[i] == 'U') {
-    i++;
+  if (current() == 'u' || current() == 'U') {
+    next();
   }
-
-  return i;
 }
 
-size_t scan_int_prefix_opt(const char *file, size_t index) {
-  if (file[index] == 'u' || file[index] == 'U') {
-    return scan_int_prefix_ufirst(file, index);
-  } else if (file[index] == 'w' || file[index] == 'W' || file[index] == 'l' ||
-             file[index] == 'L') {
-    return scan_int_prefix_ulast(file, index);
+void scan_int_prefix_opt(void) {
+  if (current() == 'u' || current() == 'U') {
+    scan_int_prefix_ufirst();
+  } else if (current() == 'w' || current() == 'W' || current() == 'l' ||
+             current() == 'L') {
+    scan_int_prefix_ulast();
   }
-
-  return index;
 }
 
-size_t scan_binary_number(const char *file, size_t index) {
-  size_t i = index;
-
-  if (file[i] == '0') {
-    i++;
+void scan_binary_number(void) {
+  if (current() == '0') {
+    next();
   } else {
     SCANNER_ERROR("0");
   }
 
-  if (file[i] == 'b' || file[i] == 'B') {
-    i++;
+  if (current() == 'b' || current() == 'B') {
+    next();
   } else {
     SCANNER_ERROR("b, B");
   }
 
-  if (file[i] == '0' || file[i] == '1') {
-    i++;
+  if (is_binary_digit()) {
+    next();
   } else {
-    SCANNER_ERROR("0, 1");
+    SCANNER_ERROR(BIN_DIGIT_SEQ);
   }
 
-  while (is_hex_digit(file[i]) || file[i] == '\'') {
-    if (file[i] != '0' && file[i] != '1' && file[i] != '\'') {
-      SCANNER_ERROR("0, 1");
+  while (is_hex_digit() || current() == '\'') {
+    if (!is_binary_digit() && current() != '\'') {
+      SCANNER_ERROR(BIN_DIGIT_SEQ);
     }
 
-    i++;
+    next();
   }
 
-  i--;
-  if (file[i] == '0' || file[i] == '1') {
-    i++;
-  } else {
-    SCANNER_ERROR("0, 1");
+  if (!is_char_binary_digit(last())) {
+    state.cur--;
+    SCANNER_ERROR(BIN_DIGIT_SEQ);
   }
 
-  return scan_int_prefix_opt(file, i);
+  scan_int_prefix_opt();
 }
 
-size_t scan_octal_number(const char *file, size_t index) {
-  size_t i = index;
-
-  if (file[i] == '0') {
-    i++;
+void scan_octal_number(void) {
+  if (current() == '0') {
+    next();
   } else {
     SCANNER_ERROR("0");
   }
 
-  if (file[i] == '.') {
-    i = scan_period(file, i);
+  if (current() == '.') {
+    scan_period();
 
-    if (file[i] == 'e' || file[i] == 'E') {
-      i = scan_exp(file, i);
+    if (current() == 'e' || current() == 'E') {
+      scan_exp();
     }
 
-    return scan_floating_suffix(file, i);
+    scan_floating_suffix();
+    return;
   }
 
-  while (is_hex_digit(file[i]) || file[i] == '\'') {
-    if (!is_octal_digit(file[i]) && file[i] != '\'') {
+  while (is_hex_digit() || current() == '\'') {
+    if (!is_octal_digit() && current() != '\'') {
       SCANNER_ERROR(OCT_DIGIT_SEQ);
     }
 
-    i++;
+    next();
   }
 
-  i--;
-  if (is_octal_digit(file[i])) {
-    i++;
-  } else {
+  if (!is_char_octal_digit(last())) {
+    state.cur--;
     SCANNER_ERROR(OCT_DIGIT_SEQ);
   }
 
-  return scan_int_prefix_opt(file, i);
+  scan_int_prefix_opt();
 }
 
-size_t scan_decimal_number(const char *file, size_t index) {
-  size_t i = index;
+void scan_decimal_number(void) {
+  if (is_nonzero_digit()) {
+    scan_digit_seq();
 
-  if (is_nonzero_digit(file[i])) {
-    i = scan_digit_seq(file, i);
+    if (current() == '.') {
+      scan_period();
 
-    if (file[i] == '.') {
-      i = scan_period(file, i);
-
-      if (file[i] == 'e' || file[i] == 'E') {
-        i = scan_exp(file, i);
+      if (current() == 'e' || current() == 'E') {
+        scan_exp();
       }
 
-      i = scan_floating_suffix(file, i);
+      scan_floating_suffix();
     }
   } else {
     SCANNER_ERROR(NON_ZERO_SEQ);
   }
 
-  return scan_int_prefix_opt(file, i);
+  scan_int_prefix_opt();
 }
 
-size_t scan_hex_number(const char *file, size_t index) {
-  size_t i = index;
-
-  if (file[i] == '0') {
-    i++;
+void scan_hex_number(void) {
+  if (current() == '0') {
+    next();
   } else {
     SCANNER_ERROR("0");
   }
 
-  if (file[i] == 'x' || file[i] == 'X') {
-    i++;
+  if (current() == 'x' || current() == 'X') {
+    next();
   } else {
     SCANNER_ERROR("x, X");
   }
 
-  if (is_hex_digit(file[i])) {
-    i = scan_hex_digit_seq(file, i);
-
-    if (file[i] == '.') {
-      i = scan_hex_fractional_const_opt(file, i);
-      i = scan_binary_exp(file, i);
-      i = scan_floating_suffix(file, i);
-    }
-  } else if (file[i] == '.') {
-    i = scan_hex_fractional_const(file, i);
-    i = scan_binary_exp(file, i);
-    i = scan_floating_suffix(file, i);
-  } else {
+  if (!is_hex_digit() && current() != '.') {
     SCANNER_ERROR(HEX_DIGIT_SEQ);
   }
 
-  return scan_int_prefix_opt(file, i);
+  if (is_hex_digit()) {
+    scan_hex_digit_seq();
+  }
+
+  if (current() == '.') {
+    scan_hex_fractional_const();
+    scan_binary_exp();
+    scan_floating_suffix();
+  }
+
+  scan_int_prefix_opt();
 }
 
-size_t scan_number(const char *file, size_t index) {
-  size_t i = index;
-
-  if (file[i] == '0') {
-    if (file[i + 1] == 'x' || file[i + 1] == 'X') {
-      return scan_hex_number(file, i);
-    } else if (file[i + 1] == 'b' || file[i + 1] == 'B') {
-      return scan_binary_number(file, i);
+void scan_number(void) {
+  if (current() == '0') {
+    if (peek() == 'x' || peek() == 'X') {
+      scan_hex_number();
+    } else if (peek() == 'b' || peek() == 'B') {
+      scan_binary_number();
+    } else {
+      scan_octal_number();
     }
-
-    return scan_octal_number(file, i);
-  } else if (is_digit(file[i])) {
-    return scan_decimal_number(file, i);
+  } else if (is_digit()) {
+    scan_decimal_number();
   } else {
     SCANNER_ERROR(DEC_DIGIT_SEQ);
   }
-
-  return i;
 }
 
-size_t scan_simple_esc(const char *file, size_t index) {
-  size_t i = index;
-
-  if (file[i] == '\'' || file[i] == '"' || file[i] == '?' || file[i] == '\\' ||
-      file[i] == 'a' || file[i] == 'b' || file[i] == 'f' || file[i] == 'n' ||
-      file[i] == 'r' || file[i] == 't' || file[i] == 'v') {
-    i++;
+void scan_simple_esc(void) {
+  if (current() == '\'' || current() == '"' || current() == '?' ||
+      current() == '\\' || current() == 'a' || current() == 'b' ||
+      current() == 'f' || current() == 'n' || current() == 'r' ||
+      current() == 't' || current() == 'v') {
+    next();
   } else {
     SCANNER_ERROR("', \", ?, \\, a, b, f, n, r, t, v");
   }
-
-  return i;
 }
 
-size_t scan_octal_esc(const char *file, size_t index) {
-  size_t i = index;
-
-  if (is_octal_digit(file[i])) {
-    i++;
+void scan_octal_esc(void) {
+  if (is_octal_digit()) {
+    next();
   } else {
     SCANNER_ERROR(OCT_DIGIT_SEQ);
   }
 
-  if (is_octal_digit(file[i])) {
-    i++;
+  if (is_octal_digit()) {
+    next();
   }
 
-  if (is_octal_digit(file[i])) {
-    i++;
+  if (is_octal_digit()) {
+    next();
   }
-
-  return i;
 }
 
-size_t scan_hexadecimal_esc(const char *file, size_t index) {
-  size_t i = index;
-
-  if (file[i] == '\\') {
-    i++;
+void scan_hexadecimal_esc(void) {
+  if (current() == '\\') {
+    next();
   } else {
     SCANNER_ERROR("\\");
   }
 
-  if (file[i] == 'x') {
-    i++;
+  if (current() == 'x') {
+    next();
   } else {
     SCANNER_ERROR("x");
   }
 
-  if (is_hex_digit(file[i])) {
-    i++;
+  if (is_hex_digit()) {
+    next();
   } else {
     SCANNER_ERROR(HEX_DIGIT_SEQ);
   }
 
-  while (is_hex_digit(file[i])) {
-    i++;
+  while (is_hex_digit()) {
+    next();
   }
-
-  return i;
 }
 
-size_t scan_char(const char *file, size_t index) {
-  size_t i = index;
+void scan_char(void) {
+  if (memcmp(&state.file[state.cur], "\\u", 2) == 0) {
+    scan_universal_character();
+  } else if (memcmp(&state.file[state.cur], "\\x", 2) == 0) {
+    scan_hexadecimal_esc();
+  } else if (current() == '\\') {
+    next();
 
-  if (memcmp(&file[i], "\\u", 2) == 0) {
-    i = scan_universal_character(file, index);
-  } else if (memcmp(&file[i], "\\x", 2) == 0) {
-    i = scan_hexadecimal_esc(file, index);
-  } else if (file[i] == '\\') {
-    i++;
-
-    if (is_octal_digit(file[i])) {
-      i = scan_octal_esc(file, i);
+    if (is_octal_digit()) {
+      scan_octal_esc();
     } else {
-      i = scan_simple_esc(file, i);
+      scan_simple_esc();
     }
   } else {
-    i++;
+    next();
   }
-
-  return i;
 }
 
-size_t scan_c_char_seq(const char *file, size_t index) {
-  size_t i = index;
-
-  if (file[i] == '\'') {
-    i++;
+void scan_c_char_seq(void) {
+  if (current() == '\'') {
+    next();
   } else {
     SCANNER_ERROR("\'");
   }
 
-  if (file[i] == '\n') {
+  if (current() == '\n') {
     SCANNER_ERROR("a char");
   }
 
-  i = scan_char(file, i);
+  scan_char();
 
-  if (file[i] == '\'') {
-    i++;
+  if (current() == '\'') {
+    next();
   } else {
     SCANNER_ERROR("\'");
   }
-
-  return i;
 }
 
-size_t scan_s_char_seq(const char *file, size_t index) {
-  size_t i = index;
-
-  if (file[i] == '"') {
-    i++;
+void scan_s_char_seq(void) {
+  if (current() == '"') {
+    next();
   } else {
     SCANNER_ERROR("\"");
   }
 
-  while (file[i] != '\"') {
-    if (file[i] == '\n') {
+  while (current() != '"') {
+    if (current() == '\n') {
       SCANNER_ERROR("\"");
     }
 
-    i = scan_char(file, i);
+    scan_char();
   }
 
-  if (file[i] == '"') {
-    i++;
+  if (current() == '"') {
+    next();
   } else {
     SCANNER_ERROR("\"");
   }
-
-  return i;
 }
 
-Token *alloc_new_token(const char *value, kind_t kind, size_t start, size_t end,
+Token *alloc_new_token(const char *value, kind_t kind, size_t start,
                        Coord start_coord) {
+  size_t end = state.cur;
   size_t value_length = end - start;
   Token *new_token = calloc(1, sizeof(Token));
 
@@ -717,7 +664,7 @@ Token *alloc_new_token(const char *value, kind_t kind, size_t start, size_t end,
   new_token->next = NULL;
 
   new_token->span.start = start_coord;
-  new_token->span.end = calc_coord(end);
+  new_token->span.end = get_current_coord();
 
   if (!value) {
     new_token->data = NULL;
@@ -731,9 +678,18 @@ Token *alloc_new_token(const char *value, kind_t kind, size_t start, size_t end,
     return NULL;
   }
 
-  new_token->data = strncpy(data, value, value_length);
-  data[value_length] = '\0';
+  size_t d_index = 0;
+  for (size_t i = 0; i < value_length; i++) {
+    if (value[i] == '\\' && value[i + 1] == '\n') {
+      i++;
+      continue;
+    }
 
+    data[d_index++] = value[i];
+  }
+
+  data[d_index] = '\0';
+  new_token->data = data;
   return new_token;
 }
 
@@ -750,213 +706,209 @@ void append_linked_list(Token *new, Token **head, Token **tail) {
 Token *scan(const char *file) {
   Token *result = NULL;
   Token *last = NULL;
-  size_t i;
 
-  // reset global state
-  seen_newlines = 0;
-  last_newline = -1;
+  initialize_scanner_state(file);
 
-  for (i = 0; file[i] != '\0';) {
+  while (current() != EOF) {
     kind_t kind = PUNCT;
-    size_t start = i;
-    Coord start_coord = calc_coord(i);
+    size_t start = state.cur;
+    Coord start_coord = get_current_coord();
 
-    if (is_whitespace(file[i])) {
-      i = scan_whitespace(file, i);
+    if (is_whitespace()) {
+      scan_whitespace();
       continue;
-    } else if (file[i] == '/') {
-      i++;
+    } else if (current() == '/') {
+      next();
 
-      if (file[i] == '/') {
-        i = scan_reg_comment(file, i);
+      if (current() == '/') {
+        scan_reg_comment();
         continue;
-      } else if (file[i] == '*') {
-        i++;
-        i = scan_inline_comment(file, i);
+      } else if (current() == '*') {
+        next();
+        scan_inline_comment();
         continue;
-      } else if (file[i] == '=') {
-        i++;
+      } else if (current() == '=') {
+        next();
       }
-    } else if (file[i] == 'u') {
+    } else if (current() == 'u') {
       kind = IDENTIFIER;
-      i++;
+      next();
 
-      if (file[i] == '8') {
+      if (current() == '8') {
         kind = CONSTANT;
-        i++;
+        next();
 
-        if (file[i] == '\'') {
-          i = scan_c_char_seq(file, i);
-        } else if (file[i] == '\"') {
+        if (current() == '\'') {
+          scan_c_char_seq();
+        } else if (current() == '\"') {
           kind = STRING;
-          i = scan_s_char_seq(file, i);
+          scan_s_char_seq();
         }
-      } else if (file[i] == '\'') {
+      } else if (current() == '\'') {
         kind = CONSTANT;
-        i = scan_c_char_seq(file, i);
-      } else if (file[i] == '\"') {
+        scan_c_char_seq();
+      } else if (current() == '\"') {
         kind = STRING;
-        i = scan_s_char_seq(file, i);
+        scan_s_char_seq();
       } else {
-        i = scan_identifier(file, i);
+        scan_identifier();
       }
-    } else if (file[i] == 'U' || file[i] == 'L') {
+    } else if (current() == 'U' || current() == 'L') {
       kind = IDENTIFIER;
-      i++;
+      next();
 
-      if (file[i] == '\'') {
+      if (current() == '\'') {
         kind = CONSTANT;
-        i = scan_c_char_seq(file, i);
-      } else if (file[i] == '\"') {
+        scan_c_char_seq();
+      } else if (current() == '\"') {
         kind = STRING;
-        i = scan_s_char_seq(file, i);
+        scan_s_char_seq();
       } else {
-        i = scan_identifier(file, i);
+        scan_identifier();
       }
-    } else if (is_nondigit(file[i])) {
+    } else if (is_nondigit()) {
       kind = IDENTIFIER;
-      i = scan_identifier(file, i);
-    } else if (is_digit(file[i])) {
+      scan_identifier();
+    } else if (is_digit()) {
       kind = CONSTANT;
-      i = scan_number(file, i);
-    } else if (file[i] == '.') {
-      i++;
+      scan_number();
+    } else if (current() == '.') {
+      next();
 
-      if (is_digit(file[i])) {
+      if (is_digit()) {
         kind = CONSTANT;
-        i = scan_fractional_const(file, i - 1);
-        i = scan_floating_suffix(file, i);
-      } else if (file[i] == '.') {
-        i++;
+        scan_fractional_const();
+        scan_floating_suffix();
+      } else if (current() == '.') {
+        next();
 
-        if (file[i] == '.') {
-          i++;
+        if (current() == '.') {
+          next();
         } else {
           SCANNER_ERROR(".");
         }
       }
-    } else if (file[i] == '\'') {
+    } else if (current() == '\'') {
       kind = CONSTANT;
-      i = scan_c_char_seq(file, i);
-    } else if (file[i] == '\"') {
+      scan_c_char_seq();
+    } else if (current() == '\"') {
       kind = STRING;
-      i = scan_s_char_seq(file, i);
-    } else if (file[i] == '[' || file[i] == ']' || file[i] == '(' ||
-               file[i] == ')' || file[i] == '{' || file[i] == '}' ||
-               file[i] == '~' || file[i] == '?' || file[i] == ';' ||
-               file[i] == ',') {
-      i++;
-    } else if (file[i] == '-') {
-      i++;
+      scan_s_char_seq();
+    } else if (current() == '[' || current() == ']' || current() == '(' ||
+               current() == ')' || current() == '{' || current() == '}' ||
+               current() == '~' || current() == '?' || current() == ';' ||
+               current() == ',') {
+      next();
+    } else if (current() == '-') {
+      next();
 
-      if (file[i] == '>' || file[i] == '-' || file[i] == '=') {
-        i++;
+      if (current() == '>' || current() == '-' || current() == '=') {
+        next();
       }
-    } else if (file[i] == '+') {
-      i++;
+    } else if (current() == '+') {
+      next();
 
-      if (file[i] == '+' || file[i] == '=') {
-        i++;
+      if (current() == '+' || current() == '=') {
+        next();
       }
-    } else if (file[i] == '<') {
-      i++;
+    } else if (current() == '<') {
+      next();
 
-      if (file[i] == '<') {
-        i++;
+      if (current() == '<') {
+        next();
 
-        if (file[i] == '=') {
-          i++;
+        if (current() == '=') {
+          next();
         }
-      } else if (file[i] == '=' || file[i] == ':' || file[i] == '%') {
-        i++;
+      } else if (current() == '=' || current() == ':' || current() == '%') {
+        next();
       }
-    } else if (file[i] == '>') {
-      i++;
+    } else if (current() == '>') {
+      next();
 
-      if (file[i] == '>') {
-        i++;
+      if (current() == '>') {
+        next();
 
-        if (file[i] == '=') {
-          i++;
+        if (current() == '=') {
+          next();
         }
-      } else if (file[i] == '=') {
-        i++;
+      } else if (current() == '=') {
+        next();
       }
-    } else if (file[i] == '=') {
-      i++;
+    } else if (current() == '=') {
+      next();
 
-      if (file[i] == '=') {
-        i++;
+      if (current() == '=') {
+        next();
       }
-    } else if (file[i] == '!') {
-      i++;
+    } else if (current() == '!') {
+      next();
 
-      if (file[i] == '=') {
-        i++;
+      if (current() == '=') {
+        next();
       }
-    } else if (file[i] == '&') {
-      i++;
+    } else if (current() == '&') {
+      next();
 
-      if (file[i] == '=' || file[i] == '&') {
-        i++;
+      if (current() == '=' || current() == '&') {
+        next();
       }
-    } else if (file[i] == '|') {
-      i++;
+    } else if (current() == '|') {
+      next();
 
-      if (file[i] == '=' || file[i] == '|') {
-        i++;
+      if (current() == '=' || current() == '|') {
+        next();
       }
-    } else if (file[i] == ':') {
-      i++;
+    } else if (current() == ':') {
+      next();
 
-      if (file[i] == ':' || file[i] == '>') {
-        i++;
+      if (current() == ':' || current() == '>') {
+        next();
       }
-    } else if (file[i] == '*') {
-      i++;
+    } else if (current() == '*') {
+      next();
 
-      if (file[i] == '=') {
-        i++;
+      if (current() == '=') {
+        next();
       }
-    } else if (file[i] == '%') {
-      i++;
+    } else if (current() == '%') {
+      next();
 
-      if (file[i] == '=' || file[i] == '>') {
-        i++;
-      } else if (file[i] == ':') {
-        i++;
+      if (current() == '=' || current() == '>') {
+        next();
+      } else if (current() == ':') {
+        next();
 
-        if (file[i] == '%') {
-          i++;
+        if (current() == '%') {
+          next();
 
-          if (file[i] == ':') {
-            i++;
+          if (current() == ':') {
+            next();
           } else {
             SCANNER_ERROR(":");
           }
         }
       }
-    } else if (file[i] == '^') {
-      i++;
+    } else if (current() == '^') {
+      next();
 
-      if (file[i] == '=') {
-        i++;
+      if (current() == '=') {
+        next();
       }
-    } else if (file[i] == '#') {
-      i++;
+    } else if (current() == '#') {
+      next();
 
-      if (file[i] == '#') {
-        i++;
+      if (current() == '#') {
+        next();
       }
     } else {
-      size_t lineno = seen_newlines + 1;
-      size_t column = start - last_newline;
-      ERRORV("scanner", "Unexpected character %c at %zu:%zu", file[i], lineno,
-             column);
+      Coord coord = get_current_coord();
+      ERRORV("scanner", "Unexpected character %c at %zu:%zu", current(),
+             coord.line_number, coord.column);
     }
 
     const char *value_begin = &file[start];
-    size_t value_length = i - start;
+    size_t value_length = state.cur - start;
 
     if (kind == IDENTIFIER &&
         is_in_array(value_begin, value_length, keywords, NELEMS(keywords))) {
@@ -967,8 +919,7 @@ Token *scan(const char *file) {
       kind = CONSTANT;
     }
 
-    Token *new_token =
-      alloc_new_token(value_begin, kind, start, i, start_coord);
+    Token *new_token = alloc_new_token(value_begin, kind, start, start_coord);
 
     if (!new_token) {
       free_list(result);
@@ -978,7 +929,7 @@ Token *scan(const char *file) {
     append_linked_list(new_token, &result, &last);
   }
 
-  Token *eof = alloc_new_token(NULL, EOF, i, i, calc_coord(i));
+  Token *eof = alloc_new_token(NULL, EOF, state.cur, get_current_coord());
 
   if (!eof) {
     free_list(result);
