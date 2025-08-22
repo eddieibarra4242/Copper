@@ -22,6 +22,7 @@ typedef struct Coord {
 } Coord;
 
 typedef struct SpanStruct {
+  const char *filename;
   Coord start;
   Coord end;
 } Span;
@@ -35,5 +36,5 @@ typedef struct TokenStruct {
   struct TokenStruct *next;
 } Token;
 
-Token *scan(const char *file);
+Token *scan(const char *filename, const char *file);
 void free_list(Token *list);

@@ -649,8 +649,8 @@ void scan_s_char_seq(void) {
   }
 }
 
-Token *alloc_new_token(const char *value, kind_t kind, size_t start,
-                       Coord start_coord) {
+Token *alloc_new_token(const char *filename, const char *value, kind_t kind,
+                       size_t start, Coord start_coord) {
   size_t end = state.cur;
   size_t value_length = end - start;
   Token *new_token = calloc(1, sizeof(Token));
@@ -663,6 +663,7 @@ Token *alloc_new_token(const char *value, kind_t kind, size_t start,
   new_token->length = value_length;
   new_token->next = NULL;
 
+  new_token->span.filename = filename;
   new_token->span.start = start_coord;
   new_token->span.end = get_current_coord();
 
@@ -703,7 +704,7 @@ void append_linked_list(Token *new, Token **head, Token **tail) {
   *tail = new;
 }
 
-Token *scan(const char *file) {
+Token *scan(const char *filename, const char *file) {
   Token *result = NULL;
   Token *last = NULL;
 
@@ -919,7 +920,8 @@ Token *scan(const char *file) {
       kind = CONSTANT;
     }
 
-    Token *new_token = alloc_new_token(value_begin, kind, start, start_coord);
+    Token *new_token =
+      alloc_new_token(filename, value_begin, kind, start, start_coord);
 
     if (!new_token) {
       free_list(result);
@@ -929,7 +931,8 @@ Token *scan(const char *file) {
     append_linked_list(new_token, &result, &last);
   }
 
-  Token *eof = alloc_new_token(NULL, EOF, state.cur, get_current_coord());
+  Token *eof =
+    alloc_new_token(filename, NULL, EOF, state.cur, get_current_coord());
 
   if (!eof) {
     free_list(result);

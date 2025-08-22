@@ -812,8 +812,8 @@ const char *get_token_kind(void) {
 
 void yyerror(char const *s) {
   if (cur) {
-    ERRORV("parser", "%s at %s \"%s\" (line %zu:%zu)", s, get_token_kind(), cur->data,
-           cur->span.start.line_number, cur->span.start.column);
+    ERRORV("parser", "%s at %s \"%s\" (%s:%zu:%zu)", s, get_token_kind(), cur->data,
+           cur->span.filename, cur->span.start.line_number, cur->span.start.column);
   } else {
     ERROR("parser", s);
   }

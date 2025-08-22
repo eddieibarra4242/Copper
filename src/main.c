@@ -1,6 +1,7 @@
 #include <stdio.h>
 
 #include "assign.h"
+#include "backend.h"
 #include "common.h"
 #include "debug_ast.h"
 #include "debug_insn.h"
@@ -11,14 +12,15 @@
 #include "symbol.h"
 #include "transforms.h"
 #include "tree.h"
-#include "backend.h"
 
 int main(int args, char **argv) {
   if (args < 2) {
     CRITICAL("cli", "No input file!");
   }
 
-  FILE *input = fopen(argv[1], "r");
+  const char *filename = argv[1];
+
+  FILE *input = fopen(filename, "r");
 
   if (!input) {
     CRITICAL("cli", "Failed to open input file!");
@@ -47,7 +49,7 @@ int main(int args, char **argv) {
 
   TRY(fclose(input));
 
-  Token *tokens = scan(file);
+  Token *tokens = scan(filename, file);
 
   free(file);
 

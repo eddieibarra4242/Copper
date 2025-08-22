@@ -3,6 +3,8 @@
 #include <test_utils.h>
 #include <unity.h>
 
+#define scan(input) scan("test.c", input)
+
 Token *tokens;
 
 void setUp(void) { reset_log_checks(); }
