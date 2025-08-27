@@ -33,6 +33,11 @@ typedef struct TokenStruct {
   struct TokenStruct *next;
 } Token;
 
+struct token_span {
+  Token *start;
+  Token *end;
+};
+
 /**
  * Scans the given file contents and returns a linked list of tokens.
  * The returned list must be freed with free_list() when no longer needed.
@@ -74,6 +79,15 @@ Token *copy_token(Token *token);
  * @return A copy of the token list, or NULL on failure
  */
 Token *copy_token_list(Token *list);
+
+/**
+ * Creates a copy of the given span of tokens. The returned list must be freed
+ * with free_list() when no longer needed.
+ *
+ * @param span A span of tokens to copy
+ * @return A copy of the token in the span, or NULL on failure
+ */
+Token *copy_token_span(struct token_span *span);
 
 /**
  * Converts a token kind to a human-readable string.

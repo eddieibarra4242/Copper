@@ -4,6 +4,7 @@
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 struct define_macro {
   Token *id;
@@ -13,7 +14,14 @@ struct define_macro {
   struct define_macro *next;
 };
 
+struct replace_record {
+  Span macro_call;
+  struct define_macro *macro;
+  struct replace_record *next;
+};
+
 struct define_macro *list = NULL;
+struct replace_record *replacements = NULL;
 
 typedef struct file {
   const char *filename;
@@ -133,6 +141,51 @@ Token *preprocess(const char *filename) {
     cur = cur->next;
   }
 
+  for (struct replace_record *record = replacements; record != NULL;
+       record = record->next) {
+    bool previous_cond = false;
+    Token *prev = NULL;
+    for (Token *cur = result; cur != NULL; cur = cur->next) {
+      bool current_cond = is_token_contained(cur, record->macro_call);
+      if (!current_cond) {
+        previous_cond = false;
+        prev = cur;
+        continue;
+      }
+
+      if (previous_cond) {
+        // already replaced this token
+        if (prev) {
+          prev->next = cur->next;
+        } else {
+          result = cur->next;
+        }
+
+        free_token(cur);
+        cur = prev ? prev->next : result;
+        continue;
+      }
+
+      Token *replacement = copy_token_span(record->macro->replace_list);
+      NULL_CHECK(replacement);
+      if (prev) {
+        prev->next = replacement;
+      } else {
+        result = replacement;
+      }
+
+      Token *last = replacement;
+      while (last->next) {
+        last = last->next;
+      }
+      last->next = cur->next;
+      free_token(cur);
+      cur = prev ? prev->next : result;
+
+      previous_cond = current_cond;
+    }
+  }
+
   return result;
 }
 
@@ -164,4 +217,28 @@ struct token_span *create_token_span(Token *start) {
 struct token_span *enlarge_token_span(struct token_span *span, Token *new_end) {
   span->end = new_end;
   return span;
+}
+
+struct define_macro *find_macro(Token *id) {
+  for (struct define_macro *macro = list; macro != NULL; macro = macro->next) {
+    if (macro->id->length == id->length &&
+        strncmp(macro->id->data, id->data, id->length) == 0) {
+      return macro;
+    }
+  }
+
+  return NULL;
+}
+
+void record_replacement(struct token_span *span, struct define_macro *macro) {
+  struct replace_record *record = malloc(sizeof(struct replace_record));
+  NULL_CHECK(record);
+
+  record->macro_call.filename = span->start->span.filename;
+  record->macro_call.start = span->start->span.start;
+  record->macro_call.end = span->end->span.end;
+  record->macro = macro;
+
+  record->next = replacements;
+  replacements = record;
 }

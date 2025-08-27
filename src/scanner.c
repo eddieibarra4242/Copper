@@ -1017,6 +1017,27 @@ Token *copy_token_list(Token *list) {
   return result;
 }
 
+Token *copy_token_span(struct token_span *span) {
+  if (!span)
+    return NULL;
+
+  Token *result = NULL;
+  Token *last = NULL;
+
+  for (Token *cur = span->start; cur != span->end->next; cur = cur->next) {
+    Token *new_token = copy_token(cur);
+
+    if (!new_token) {
+      free_list(result);
+      return NULL;
+    }
+
+    append_linked_list(new_token, &result, &last);
+  }
+
+  return result;
+}
+
 const char *kind_to_string(kind_t kind) {
   switch (kind) {
   case IDENTIFIER:

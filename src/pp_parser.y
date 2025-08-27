@@ -14,6 +14,7 @@
 };
 
 %token<tokenval> identifier keyword punctuation constant string end
+%token<tokenval> macro_identifier
 %token<tokenval> K_define "define"
 
 %type<tokenval> '#' '\n' preprocessing_token new_line
@@ -46,6 +47,7 @@ preprocessing_token: identifier
   | punctuation
   | constant
   | string
+  | macro_identifier
 %%
 
 Token *pp_cur;
@@ -73,6 +75,12 @@ int get_pp_identifier(void) {
 
   if (strcmp(pp_cur->data, "define") == 0) {
     return K_define;
+  }
+
+  struct define_macro *macro = find_macro(pp_cur);
+  if (macro != NULL) {
+    record_replacement(create_token_span(pp_cur), macro);
+    return macro_identifier;
   }
 
   return identifier;

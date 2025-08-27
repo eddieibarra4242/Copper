@@ -2,11 +2,6 @@
 
 #include "scanner.h"
 
-struct token_span {
-  Token *start;
-  Token *end;
-};
-
 /**
  * Load, scan, and preprocess a source file.
  *
@@ -42,3 +37,19 @@ struct token_span *create_token_span(Token *start);
  * @return The enlarged token span.
  */
 struct token_span *enlarge_token_span(struct token_span *span, Token *new_end);
+
+/**
+ * Searches for a defined macro by its identifier token.
+ *
+ * @param id The identifier token of the macro to find.
+ * @return The define_macro struct if found, NULL otherwise.
+ */
+struct define_macro *find_macro(Token *id);
+
+/**
+ * Record a macro expansion to be processed later.
+ *
+ * @param span The token span representing the macro call.
+ * @param macro The macro being expanded.
+ */
+void record_replacement(struct token_span *span, struct define_macro *macro);
