@@ -7,9 +7,8 @@
 
 struct define_macro {
   Token *id;
-  struct token_list *replace_list;
-  Token *start;
-  Token *end;
+  struct token_span *replace_list;
+  Span span;
 
   struct define_macro *next;
 };
@@ -42,17 +41,14 @@ bool is_coord_less_than(Coord a, Coord b) {
   return a.column < b.column;
 }
 
-bool is_token_contained(Token *token, Token *start, Token *end) {
-  Coord start_coord = start->span.start;
-  Coord end_coord = end->span.end;
-
-  if (is_coord_less_than(token->span.start, start_coord) ||
-      is_coord_less_than(end_coord, token->span.start)) {
+bool is_token_contained(Token *token, Span span) {
+  if (is_coord_less_than(token->span.start, span.start) ||
+      is_coord_less_than(span.end, token->span.start)) {
     return false; // token->span.start is outside the range
   }
 
-  if (is_coord_less_than(token->span.end, start_coord) ||
-      is_coord_less_than(end_coord, token->span.end)) {
+  if (is_coord_less_than(token->span.end, span.start) ||
+      is_coord_less_than(span.end, token->span.end)) {
     return false; // token->span.end is outside the range
   }
 
@@ -65,7 +61,7 @@ bool is_token_pure(Token *token) {
   }
 
   for (struct define_macro *macro = list; macro != NULL; macro = macro->next) {
-    if (is_token_contained(token, macro->start, macro->end)) {
+    if (is_token_contained(token, macro->span)) {
       return false;
     }
   }
@@ -140,31 +136,32 @@ Token *preprocess(const char *filename) {
   return result;
 }
 
-void define(Token *id, struct token_list *replace_list, Token *start,
+void define(Token *id, struct token_span *replace_list, Token *start,
             Token *end) {
   struct define_macro *macro = malloc(sizeof(struct define_macro));
   NULL_CHECK(macro);
 
   macro->id = id;
   macro->replace_list = replace_list;
-  macro->start = start;
-  macro->end = end;
+  macro->span.filename = start->span.filename;
+  macro->span.start = start->span.start;
+  macro->span.end = end->span.end;
 
   macro->next = list;
   list = macro;
 }
 
-struct token_list *create_token_list(Token *start) {
-  struct token_list *list = malloc(sizeof(struct token_list));
-  NULL_CHECK(list);
+struct token_span *create_token_span(Token *start) {
+  struct token_span *span = malloc(sizeof(struct token_span));
+  NULL_CHECK(span);
 
-  list->start = start;
-  list->end = start;
+  span->start = start;
+  span->end = start;
 
-  return list;
+  return span;
 }
 
-struct token_list *enlarge_token_list(struct token_list *list, Token *new_end) {
-  list->end = new_end;
-  return list;
+struct token_span *enlarge_token_span(struct token_span *span, Token *new_end) {
+  span->end = new_end;
+  return span;
 }

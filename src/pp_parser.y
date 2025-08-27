@@ -10,7 +10,7 @@
 
 %union {
   Token *tokenval;
-  struct token_list *tokenlistval;
+  struct token_span *tokenlistval;
 };
 
 %token<tokenval> identifier keyword punctuation constant string end
@@ -31,8 +31,8 @@ replacement_list: pp_tokens_opt { $$ = $1; }
 
 text_line: pp_tokens_opt new_line;
 
-pp_tokens: preprocessing_token { $$ = create_token_list($1); }
-  | pp_tokens preprocessing_token { $$ = enlarge_token_list($1, $2); }
+pp_tokens: preprocessing_token { $$ = create_token_span($1); }
+  | pp_tokens preprocessing_token { $$ = enlarge_token_span($1, $2); }
 
 // These rules do not appear in the spec
 new_line: '\n' | end; // 'end' token is a stand-in for EOF. Since there is only one EOF, it's safe to consider EOF as a newline as well.
