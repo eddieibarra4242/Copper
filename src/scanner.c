@@ -157,7 +157,7 @@ bool is_char_hex_digit(char character) {
 bool is_whitespace(void) {
   char character = current();
   return character == ' ' || character == '\t' || character == '\r' ||
-         character == '\n' || character == '\v' || character == '\f';
+         /* character == '\n' || */ character == '\v' || character == '\f';
 }
 
 bool is_in_array(const char *value, size_t value_length, const char *array[],
@@ -667,7 +667,7 @@ Token *alloc_new_token(const char *filename, const char *value, kind_t kind,
   new_token->span.start = start_coord;
   new_token->span.end = get_current_coord();
 
-  if (!value) {
+  if (!value || kind == NEWLINE) {
     new_token->data = NULL;
     return new_token;
   }
@@ -718,6 +718,9 @@ Token *scan(const char *filename, const char *file) {
     if (is_whitespace()) {
       scan_whitespace();
       continue;
+    } else if (current() == '\n') {
+      next();
+      kind = NEWLINE;
     } else if (current() == '/') {
       next();
 
@@ -932,7 +935,7 @@ Token *scan(const char *filename, const char *file) {
   }
 
   Token *eof =
-    alloc_new_token(filename, NULL, EOF, state.cur, get_current_coord());
+    alloc_new_token(filename, NULL, END, state.cur, get_current_coord());
 
   if (!eof) {
     free_list(result);
@@ -951,8 +954,85 @@ void free_list(Token *list) {
   if (list->next)
     free_list(list->next);
 
-  if (list->data)
-    free((void *)list->data);
+  free_token(list);
+}
 
-  free(list);
+void free_token(Token *token) {
+  if (!token)
+    return;
+
+  if (token->data)
+    free((void *)token->data);
+
+  free(token);
+}
+
+Token *copy_token(Token *token) {
+  if (!token)
+    return NULL;
+
+  Token *new_token = calloc(1, sizeof(Token));
+
+  if (!new_token)
+    return NULL;
+
+  new_token->kind = token->kind;
+  new_token->length = token->length;
+  new_token->span = token->span;
+
+  if (token->data) {
+    char *data = malloc(token->length + 1);
+
+    if (!data) {
+      free(new_token);
+      return NULL;
+    }
+
+    memcpy(data, token->data, token->length);
+    data[token->length] = '\0';
+    new_token->data = data;
+  }
+
+  return new_token;
+}
+
+Token *copy_token_list(Token *list) {
+  if (!list)
+    return NULL;
+
+  Token *result = NULL;
+  Token *last = NULL;
+
+  for (Token *cur = list; cur != NULL; cur = cur->next) {
+    Token *new_token = copy_token(cur);
+
+    if (!new_token) {
+      free_list(result);
+      return NULL;
+    }
+
+    append_linked_list(new_token, &result, &last);
+  }
+
+  return result;
+}
+
+const char *kind_to_string(kind_t kind) {
+  switch (kind) {
+  case IDENTIFIER:
+    return "identifier";
+  case KEYWORD:
+    return "keyword";
+  case PUNCT:
+    return "symbol";
+  case CONSTANT:
+    return "constant";
+  case STRING:
+    return "string literal";
+  case NEWLINE:
+    return "line break";
+  default:
+  case END:
+    return "End of file";
+  }
 }

@@ -47,5 +47,14 @@
     }                                                                          \
   } while (0)
 
+#define TOKEN_PRINT(level, parser, token, msg)                                 \
+  log_message(level, #parser, "%s at %s \"%s\" (%s:%zu:%zu)", __FILE__,        \
+              __LINE__, msg, kind_to_string(token->kind), token->data,         \
+              token->span.filename, token->span.start.line_number,             \
+              token->span.start.column);
+
+#define TOKEN_ERROR(parser, token, msg)                                        \
+  TOKEN_PRINT(ERROR_LEVEL, parser, token, msg)
+
 void log_message(int level, const char *section, const char *msg,
                  const char *file, int lineno, ...);

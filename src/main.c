@@ -8,6 +8,7 @@
 #include "emit.h"
 #include "log.h"
 #include "parser.h"
+#include "preprocess.h"
 #include "scanner.h"
 #include "symbol.h"
 #include "transforms.h"
@@ -18,40 +19,7 @@ int main(int args, char **argv) {
     CRITICAL("cli", "No input file!");
   }
 
-  const char *filename = argv[1];
-
-  FILE *input = fopen(filename, "r");
-
-  if (!input) {
-    CRITICAL("cli", "Failed to open input file!");
-  }
-
-  TRY(fseek(input, 0, SEEK_END));
-  long file_size = ftell(input);
-
-  CHECK(file_size);
-
-  TRY(fseek(input, 0, SEEK_SET));
-
-  char *file = malloc(file_size + 1);
-  if (!file) {
-    ERROR("file", "Out of memory!");
-  }
-
-  size_t read_len = fread(file, sizeof(char), file_size, input);
-
-  if (read_len != (size_t)file_size) {
-    // FIXME: do not fail here...
-    ERROR("read", "Failed to read whole file!");
-  }
-
-  file[file_size] = '\0';
-
-  TRY(fclose(input));
-
-  Token *tokens = scan(filename, file);
-
-  free(file);
+  Token *tokens = preprocess(argv[1]);
 
   if (tokens == NULL) {
     CRITICAL("lex", "Failed to scan file!");
@@ -59,8 +27,8 @@ int main(int args, char **argv) {
 
 #ifndef NDEBUG
   for (Token *cur = tokens; cur != NULL; cur = cur->next) {
-    DEBUG("token [%d, %s, %zu:%zu, %zu:%zu]", cur->kind, cur->data,
-          cur->span.start.line_number, cur->span.start.column,
+    DEBUG("%-15s \"%s\" [%zu:%zu, %zu:%zu]", kind_to_string(cur->kind),
+          cur->data, cur->span.start.line_number, cur->span.start.column,
           cur->span.end.line_number, cur->span.end.column);
   }
 #endif

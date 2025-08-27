@@ -22,6 +22,7 @@ OUTPUT_NAME = cu
 
 OBJ_FILES = main.o log.o scanner.o parser.o tree.o debug_ast.o assign.o utils.o
 OBJ_FILES += symbol.o instruction.o emit.o debug_insn.o transforms.o backends/x86.o
+OBJ_FILES += preprocess.o pp_parser.o
 
 all: mkdirs $(OBJ_FILES)
 	$(CC) $(OBJ_FILES:%=../bin/int/%) -o ../bin/$(OUTPUT_NAME) $(LINK_FLAGS)
@@ -34,5 +35,5 @@ mkdirs:
 	mkdir -p ../debug
 	mkdir -p ../bin/int/backends
 
-parser.c: parser.y
-	$(BISON) --color=yes --output parser.c parser.y
+%.c: %.y
+	$(BISON) --color=yes --output $@ $<

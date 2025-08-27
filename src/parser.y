@@ -761,6 +761,7 @@ int is_next_type_alias(void) {
 }
 
 int yylex(void) {
+restart:
   if (!next_token)
     return YYUNDEF;
 
@@ -783,7 +784,11 @@ int yylex(void) {
   case STRING:
     ret = STR;
     break;
-  case EOF:
+  case NEWLINE:
+    cur = next_token;
+    next_token = next_token->next;
+    goto restart;
+  case END:
     ret = YYEOF;
     break;
   }
@@ -798,22 +803,9 @@ int yylex(void) {
   return ret;
 }
 
-const char *get_token_kind(void) {
-  switch (cur->kind) {
-  case IDENTIFIER: return "identifier";
-  case KEYWORD: return "keyword";
-  case PUNCT: return "symbol";
-  case CONSTANT: return "constant";
-  case STRING: return "string literal";
-  default:
-  case EOF: return "End of file";
-  }
-}
-
 void yyerror(char const *s) {
   if (cur) {
-    ERRORV("parser", "%s at %s \"%s\" (%s:%zu:%zu)", s, get_token_kind(), cur->data,
-           cur->span.filename, cur->span.start.line_number, cur->span.start.column);
+    TOKEN_ERROR(parser, cur, s);
   } else {
     ERROR("parser", s);
   }
