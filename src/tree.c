@@ -1,31 +1,11 @@
 #include "tree.h"
 #include "log.h"
-
-#define NEW(ty) allocate_or_error(sizeof(ty))
-
-struct allocation {
-  void *address;
-  struct allocation *next;
-};
+#include "utils.h"
 
 struct allocation *allocation_list;
-
 AST root = NULL;
 
-void *allocate_or_error(size_t size) {
-  void *result = malloc(size);
-  struct allocation *allocation = malloc(sizeof(struct allocation));
-
-  if (result == NULL || allocation == NULL) {
-    CRITICAL("ast", "Out of memory!");
-  }
-
-  allocation->address = result;
-  allocation->next = allocation_list;
-  allocation_list = allocation;
-
-  return result;
-}
+#define NEW(ty) allocate_or_error(sizeof(ty), &allocation_list)
 
 // Creating functions
 

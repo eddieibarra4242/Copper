@@ -53,3 +53,8 @@ struct define_macro *find_macro(Token *id);
  * @param macro The macro being expanded.
  */
 void record_replacement(struct token_span *span, struct define_macro *macro);
+
+/**
+ * Free the resources still in use by the preprocessor.
+ */
+void free_preprocessor_state(void);

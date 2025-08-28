@@ -1,6 +1,7 @@
 #include "preprocess.h"
 #include "log.h"
 #include "pp_parser.h"
+#include "utils.h"
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -20,6 +21,7 @@ struct replace_record {
   struct replace_record *next;
 };
 
+struct allocation *pp_allocation_list = NULL;
 struct define_macro *list = NULL;
 struct replace_record *replacements = NULL;
 
@@ -29,13 +31,6 @@ typedef struct file {
 
   struct file *next;
 } File;
-
-#define NULL_CHECK(ptr)                                                        \
-  do {                                                                         \
-    if ((ptr) == NULL) {                                                       \
-      CRITICAL("preprocessor", "Out of memory!");                              \
-    }                                                                          \
-  } while (0)
 
 bool is_coord_less_than(Coord a, Coord b) {
   if (a.line_number < b.line_number) {
@@ -116,6 +111,15 @@ File load_file(const char *filename) {
   return file;
 }
 
+void free_files(File *head) {
+  if (head == NULL)
+    return;
+
+  free_files(head->next);
+  free_list(head->tokens);
+  // FIXME: free(head);
+}
+
 Token *preprocess(const char *filename) {
   File file = load_file(filename);
 
@@ -167,7 +171,7 @@ Token *preprocess(const char *filename) {
       }
 
       Token *replacement = copy_token_span(record->macro->replace_list);
-      NULL_CHECK(replacement);
+      NULL_CHECK("preprocessor", replacement);
       if (prev) {
         prev->next = replacement;
       } else {
@@ -186,13 +190,15 @@ Token *preprocess(const char *filename) {
     }
   }
 
+  free_files(&file);
+
   return result;
 }
 
 void define(Token *id, struct token_span *replace_list, Token *start,
             Token *end) {
   struct define_macro *macro = malloc(sizeof(struct define_macro));
-  NULL_CHECK(macro);
+  NULL_CHECK("preprocessor", macro);
 
   macro->id = id;
   macro->replace_list = replace_list;
@@ -205,8 +211,9 @@ void define(Token *id, struct token_span *replace_list, Token *start,
 }
 
 struct token_span *create_token_span(Token *start) {
-  struct token_span *span = malloc(sizeof(struct token_span));
-  NULL_CHECK(span);
+  struct token_span *span =
+    allocate_or_error(sizeof(struct token_span), &pp_allocation_list);
+  NULL_CHECK("preprocessor", span);
 
   span->start = start;
   span->end = start;
@@ -232,7 +239,7 @@ struct define_macro *find_macro(Token *id) {
 
 void record_replacement(struct token_span *span, struct define_macro *macro) {
   struct replace_record *record = malloc(sizeof(struct replace_record));
-  NULL_CHECK(record);
+  NULL_CHECK("preprocessor", record);
 
   record->macro_call.filename = span->start->span.filename;
   record->macro_call.start = span->start->span.start;
@@ -241,4 +248,35 @@ void record_replacement(struct token_span *span, struct define_macro *macro) {
 
   record->next = replacements;
   replacements = record;
+}
+
+void free_define_macros(struct define_macro *head) {
+  if (head == NULL)
+    return;
+
+  free_define_macros(head->next);
+  free(head);
+}
+
+void free_replacements(struct replace_record *head) {
+  if (head == NULL)
+    return;
+
+  free_replacements(head->next);
+  free(head);
+}
+
+void free_allocation_list(struct allocation *head) {
+  if (head == NULL)
+    return;
+
+  free_allocation_list(head->next);
+  free(head->address);
+  free(head);
+}
+
+void free_preprocessor_state(void) {
+  free_replacements(replacements);
+  free_define_macros(list);
+  free_allocation_list(pp_allocation_list);
 }

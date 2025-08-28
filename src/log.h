@@ -56,5 +56,12 @@
 #define TOKEN_ERROR(parser, token, msg)                                        \
   TOKEN_PRINT(ERROR_LEVEL, parser, token, msg)
 
+#define NULL_CHECK(section, ptr)                                               \
+  do {                                                                         \
+    if ((ptr) == NULL) {                                                       \
+      CRITICAL(section, "Out of memory!");                                     \
+    }                                                                          \
+  } while (0)
+
 void log_message(int level, const char *section, const char *msg,
                  const char *file, int lineno, ...);

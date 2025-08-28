@@ -33,6 +33,8 @@ int main(int args, char **argv) {
   }
 #endif
 
+  free_preprocessor_state();
+
   init_parser(tokens);
   int result = yyparse();
 

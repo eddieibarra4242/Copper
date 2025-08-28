@@ -73,3 +73,19 @@ Constant eval_token(Token *token) {
 
   return constant;
 }
+
+void *allocate_or_error(size_t size, struct allocation **allocation_list) {
+  void *result = malloc(size);
+  NULL_CHECK("allocator", result);
+
+  if (allocation_list != NULL) {
+    struct allocation *allocation = malloc(sizeof(struct allocation));
+    NULL_CHECK("allocator", allocation);
+
+    allocation->address = result;
+    allocation->next = *allocation_list;
+    *allocation_list = allocation;
+  }
+
+  return result;
+}

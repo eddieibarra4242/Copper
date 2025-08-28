@@ -9,6 +9,11 @@ typedef union ConstantValue {
   uint64_t bits;
 } Constant;
 
+struct allocation {
+  void *address;
+  struct allocation *next;
+};
+
 /**
  * Transforms an array into a max-heap.
  *
@@ -32,3 +37,15 @@ void heap_sort(uint64_t *array, size_t nelements);
  * @return The value of the token.
  */
 Constant eval_token(Token *token);
+
+/**
+ * Allocates memory or raises a critical error if allocation fails.
+ * Note: This function will also track all allocations made in provided
+ * allocation list.
+ *
+ * @param size The size of the memory to allocate.
+ * @param allocation_list A pointer to the allocation list to update. (NULL if
+ * not tracking)
+ * @return A pointer to the allocated memory.
+ */
+void *allocate_or_error(size_t size, struct allocation **allocation_list);
