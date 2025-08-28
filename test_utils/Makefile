@@ -4,8 +4,8 @@ OBJDUMP = objdump
 
 CFLAGS = -Wall -Wextra -Wpedantic -Werror -I../Unity/src/ -I../src/
 
-#CFLAGS += -ggdb
-CFLAGS += -O2
+CFLAGS += -ggdb
+# CFLAGS += -O2
 
 LINK_FLAGS = rcs
 

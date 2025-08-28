@@ -1,6 +1,6 @@
 CC = gcc
 
-CFLAGS = -I../Unity/src/ -I../src/ -I../test_utils
+CFLAGS = -ggdb -I../Unity/src/ -I../src/ -I../test_utils
 LINK_FLAGS = -L../bin -lunity -ltestutils
 
 TESTS = scanner.test.o parser.test.o
@@ -16,6 +16,7 @@ all: mkdirs $(TESTS)
 		../bin/int/parser.o \
 		../bin/int/tree.o \
 		../bin/int/symbol.o \
+		../bin/int/utils.o \
 		../bin/int/parser.test.o \
 		../bin/int/parser.runner.o \
 		-o ../bin/tests/parser.test $(LINK_FLAGS)

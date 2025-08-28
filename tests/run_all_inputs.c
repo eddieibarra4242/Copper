@@ -3,6 +3,7 @@
 #include <stdio.h>
 #include <string.h>
 
+#include <fcntl.h>
 #include <unistd.h>
 #include <wait.h>
 
@@ -34,6 +35,11 @@ int run_cu(const char *input) {
   int child = fork();
 
   if (child == 0) {
+    int null_fd = open("/dev/null", O_WRONLY);
+
+    dup2(null_fd, STDOUT_FILENO);
+    // Not stderr so that errors are still reported.
+
     char *const args[] = {"./bin/cu", path, NULL};
     execv("./bin/cu", args);
     return 1;
